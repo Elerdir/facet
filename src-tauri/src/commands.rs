@@ -34,10 +34,19 @@ pub fn read_text_file(path: String) -> Result<String, String> {
     Ok(detect::decode(&bytes).0)
 }
 
-/// Write a text file to disk, overwriting any existing content.
+/// Write a text file to disk, overwriting any existing content. `encoding`
+/// (e.g. "utf-16le", "windows-1250") re-encodes the text; default is UTF-8.
 #[tauri::command]
-pub fn write_text_file(path: String, contents: String) -> Result<(), String> {
-    fs::write(&path, contents).map_err(|e| format!("Nelze uložit soubor: {e}"))
+pub fn write_text_file(
+    path: String,
+    contents: String,
+    encoding: Option<String>,
+) -> Result<(), String> {
+    let bytes = match encoding.as_deref() {
+        None => contents.into_bytes(),
+        Some(label) => detect::encode_text(&contents, label)?,
+    };
+    fs::write(&path, bytes).map_err(|e| format!("Nelze uložit soubor: {e}"))
 }
 
 /// Inspect a file without loading all of it: size, binary flag and encoding,
@@ -246,8 +255,17 @@ mod tests {
     fn write_then_read_roundtrip() {
         let dir = tempdir().unwrap();
         let path = dir.path().join("note.txt").to_string_lossy().into_owned();
-        write_text_file(path.clone(), "ahoj světe".into()).unwrap();
+        write_text_file(path.clone(), "ahoj světe".into(), None).unwrap();
         assert_eq!(read_text_file(path).unwrap(), "ahoj světe");
+    }
+
+    #[test]
+    fn write_with_encoding_roundtrips_via_detection() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("u16.txt").to_string_lossy().into_owned();
+        write_text_file(path.clone(), "Příliš žluťoučký".into(), Some("utf-16le".into()))
+            .unwrap();
+        assert_eq!(read_text_file(path).unwrap(), "Příliš žluťoučký");
     }
 
     #[test]

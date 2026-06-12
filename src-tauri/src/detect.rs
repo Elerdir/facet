@@ -44,9 +44,71 @@ pub fn decode(bytes: &[u8]) -> (String, String) {
     (text.into_owned(), actual.name().to_string())
 }
 
+/// Encode text into the requested encoding for saving. UTF-16 variants are
+/// hand-rolled (encoding_rs only decodes UTF-16); legacy encodings go through
+/// encoding_rs by label (windows-1250, iso-8859-2, …).
+pub fn encode_text(contents: &str, encoding: &str) -> Result<Vec<u8>, String> {
+    match encoding.to_ascii_lowercase().as_str() {
+        "utf-8" => Ok(contents.as_bytes().to_vec()),
+        "utf-8-bom" => {
+            let mut out = vec![0xEF, 0xBB, 0xBF];
+            out.extend_from_slice(contents.as_bytes());
+            Ok(out)
+        }
+        "utf-16le" => {
+            let mut out = vec![0xFF, 0xFE];
+            for unit in contents.encode_utf16() {
+                out.extend_from_slice(&unit.to_le_bytes());
+            }
+            Ok(out)
+        }
+        "utf-16be" => {
+            let mut out = vec![0xFE, 0xFF];
+            for unit in contents.encode_utf16() {
+                out.extend_from_slice(&unit.to_be_bytes());
+            }
+            Ok(out)
+        }
+        other => {
+            let enc = Encoding::for_label(other.as_bytes())
+                .ok_or_else(|| format!("Neznámé kódování: {other}"))?;
+            let (bytes, _, had_errors) = enc.encode(contents);
+            if had_errors {
+                return Err(format!(
+                    "Text obsahuje znaky, které nelze uložit v kódování {other}."
+                ));
+            }
+            Ok(bytes.into_owned())
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn encodes_utf16le_roundtrip() {
+        let bytes = encode_text("Příliš žluťoučký", "utf-16le").unwrap();
+        let (text, name) = decode(&bytes);
+        assert_eq!(text, "Příliš žluťoučký");
+        assert_eq!(name, "UTF-16LE");
+    }
+
+    #[test]
+    fn encodes_utf8_bom() {
+        let bytes = encode_text("ahoj", "utf-8-bom").unwrap();
+        assert_eq!(&bytes[..3], &[0xEF, 0xBB, 0xBF]);
+        assert_eq!(&bytes[3..], "ahoj".as_bytes());
+    }
+
+    #[test]
+    fn encodes_windows_1250_and_rejects_unrepresentable() {
+        let ok = encode_text("Žluťoučký kůň", "windows-1250").unwrap();
+        assert!(!ok.is_empty());
+        assert!(encode_text("日本語", "windows-1250").is_err());
+        assert!(encode_text("x", "no-such-encoding").is_err());
+    }
 
     #[test]
     fn detects_binary_via_null_byte() {

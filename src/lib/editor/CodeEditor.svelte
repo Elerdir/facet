@@ -11,6 +11,7 @@
   import type { Buffer } from "../domain/buffer";
   import type { BlameLine } from "../domain/vcs";
   import type { LspDiagnostic, LspCompletionItem } from "../application/lsp.svelte";
+  import { FORMAT_MARKERS, type TextFormatKind } from "../domain/textFormat";
 
   // Presentational CodeMirror wrapper: shows `buffer` and reports edits via
   // `onInput`. Highlighting lives in a Compartment so a TextMate grammar can be
@@ -19,6 +20,10 @@
     buffer,
     onInput,
     theme = "dark",
+    fontFamily = '"Cascadia Code", "JetBrains Mono", Consolas, monospace',
+    fontSize = 13,
+    formatRequest = null,
+    onFormatConsumed,
     revealLine,
     blame,
     lspDiagnostics,
@@ -33,6 +38,10 @@
     buffer: Buffer | null;
     onInput: (text: string) => void;
     theme?: "dark" | "light";
+    fontFamily?: string;
+    fontSize?: number;
+    formatRequest?: { kind: TextFormatKind; seq: number } | null;
+    onFormatConsumed?: () => void;
     revealLine?: number;
     blame?: BlameLine[] | null;
     lspDiagnostics?: LspDiagnostic[];
@@ -264,6 +273,23 @@
     }
   });
 
+  // Wrap the current selection with markdown-style markers (bold/italic/…).
+  $effect(() => {
+    const req = formatRequest;
+    if (!view || !req) return;
+    const [pre, post] = FORMAT_MARKERS[req.kind];
+    const sel = view.state.selection.main;
+    view.dispatch({
+      changes: [
+        { from: sel.from, insert: pre },
+        { from: sel.to, insert: post },
+      ],
+      selection: { anchor: sel.from + pre.length, head: sel.to + pre.length },
+    });
+    view.focus();
+    onFormatConsumed?.();
+  });
+
   // Scroll to a requested line (from search / quick-open), then release it.
   $effect(() => {
     const target = revealLine;
@@ -286,7 +312,11 @@
   });
 </script>
 
-<div class="editor-host" bind:this={host}></div>
+<div
+  class="editor-host"
+  style={`--editor-font: ${fontFamily}; --editor-font-size: ${fontSize}px`}
+  bind:this={host}
+></div>
 
 <style>
   .editor-host {
@@ -300,8 +330,8 @@
   }
 
   .editor-host :global(.cm-scroller) {
-    font-family: "Cascadia Code", "JetBrains Mono", "Consolas", monospace;
-    font-size: 13px;
+    font-family: var(--editor-font, "Cascadia Code", Consolas, monospace);
+    font-size: var(--editor-font-size, 13px);
   }
 
   .editor-host :global(.cm-blame-gutter) {

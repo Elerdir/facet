@@ -12,6 +12,9 @@ describe("parseSettings", () => {
         lspEnabled: false,
         aiApiKey: "sk-ant-test",
         aiModel: "claude-haiku-4-5",
+        editorFontFamily: "Fira Code",
+        editorFontSize: 16,
+        fileTemplates: [{ name: "Moje", extension: ".FOO", content: "x" }],
       }),
     );
     expect(s).toEqual({
@@ -22,7 +25,21 @@ describe("parseSettings", () => {
       lspEnabled: false,
       aiApiKey: "sk-ant-test",
       aiModel: "claude-haiku-4-5",
+      editorFontFamily: "Fira Code",
+      editorFontSize: 16,
+      fileTemplates: [{ name: "Moje", extension: "foo", content: "x" }],
     });
+  });
+
+  it("clamps the editor font size and drops malformed templates", () => {
+    const s = parseSettings(
+      JSON.stringify({
+        editorFontSize: 99,
+        fileTemplates: [{ name: "ok", extension: "a", content: "x" }, { name: 5 }, "bad"],
+      }),
+    );
+    expect(s.editorFontSize).toBe(32);
+    expect(s.fileTemplates).toEqual([{ name: "ok", extension: "a", content: "x" }]);
   });
 
   it("falls back to the default AI model for unknown ids", () => {

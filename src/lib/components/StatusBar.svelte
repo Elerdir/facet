@@ -3,6 +3,8 @@
   import { isDirty } from "../domain/buffer";
   import { extension } from "../domain/paths";
 
+  let { onEncodingClick }: { onEncodingClick: () => void } = $props();
+
   const ws = getWorkspace();
   const activeId = $derived(ws.layout.activeTabId);
   const buf = $derived(activeId ? (ws.buffers.get(activeId) ?? null) : null);
@@ -27,7 +29,9 @@
       <span>{lines} ř.</span>
     {/if}
     <span>{lang}</span>
-    <span>{buf.encoding}</span>
+    <button class="encoding" title="Převést kódování…" onclick={onEncodingClick}>
+      {buf.encoding}
+    </button>
     {#if buf.size > 0}
       <span>{buf.size.toLocaleString()} B</span>
     {/if}
@@ -60,5 +64,19 @@
 
   .dirty {
     color: var(--accent);
+  }
+
+  .encoding {
+    border: none;
+    background: transparent;
+    color: var(--fg-dim);
+    font: inherit;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .encoding:hover {
+    color: var(--fg);
+    text-decoration: underline;
   }
 </style>

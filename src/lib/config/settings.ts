@@ -1,4 +1,5 @@
 import { DEFAULT_AI_MODEL, isKnownAiModel } from "../domain/ai";
+import type { CustomTemplate } from "../domain/newFileTemplates";
 
 export interface Settings {
   autosaveEnabled: boolean;
@@ -8,6 +9,9 @@ export interface Settings {
   lspEnabled: boolean;
   aiApiKey: string;
   aiModel: string;
+  editorFontFamily: string;
+  editorFontSize: number;
+  fileTemplates: CustomTemplate[];
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -18,6 +22,9 @@ export const DEFAULT_SETTINGS: Settings = {
   lspEnabled: true,
   aiApiKey: "",
   aiModel: DEFAULT_AI_MODEL,
+  editorFontFamily: '"Cascadia Code", "JetBrains Mono", Consolas, monospace',
+  editorFontSize: 13,
+  fileTemplates: [],
 };
 
 function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
@@ -57,5 +64,28 @@ export function parseSettings(raw: string): Settings {
       typeof r.aiModel === "string" && isKnownAiModel(r.aiModel)
         ? r.aiModel
         : DEFAULT_SETTINGS.aiModel,
+    editorFontFamily:
+      typeof r.editorFontFamily === "string" && r.editorFontFamily.trim() !== ""
+        ? r.editorFontFamily
+        : DEFAULT_SETTINGS.editorFontFamily,
+    editorFontSize: clampNumber(r.editorFontSize, 8, 32, DEFAULT_SETTINGS.editorFontSize),
+    fileTemplates: Array.isArray(r.fileTemplates)
+      ? r.fileTemplates
+          .filter(
+            (t): t is { name: unknown; extension: unknown; content: unknown } =>
+              typeof t === "object" && t !== null,
+          )
+          .filter(
+            (t) =>
+              typeof t.name === "string" &&
+              typeof t.extension === "string" &&
+              typeof t.content === "string",
+          )
+          .map((t) => ({
+            name: t.name as string,
+            extension: (t.extension as string).replace(/^\./, "").toLowerCase(),
+            content: t.content as string,
+          }))
+      : [],
   };
 }

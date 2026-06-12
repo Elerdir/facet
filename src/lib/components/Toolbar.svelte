@@ -14,6 +14,7 @@
     Settings,
     Fingerprint,
     Bot,
+    SquareTerminal,
   } from "@lucide/svelte";
   import { getWorkspace } from "../application/context";
 
@@ -21,11 +22,15 @@
     onToggleSidebar,
     onToggleHistory,
     onToggleAi,
+    onToggleTerminal,
+    onNewFile,
     onOpenSettings,
   }: {
     onToggleSidebar: () => void;
     onToggleHistory: () => void;
     onToggleAi: () => void;
+    onToggleTerminal: () => void;
+    onNewFile: () => void;
     onOpenSettings: () => void;
   } = $props();
   const ws = getWorkspace();
@@ -36,7 +41,7 @@
     <PanelLeft size={16} />
   </button>
   <span class="sep"></span>
-  <button class="icon" title="Nový soubor (Ctrl+N)" onclick={() => ws.newFile()}>
+  <button class="icon" title="Nový soubor (Ctrl+N)" onclick={onNewFile}>
     <FilePlus size={16} />
   </button>
   <button class="icon" title="Otevřít soubor (Ctrl+O)" onclick={() => ws.openFromDialog()}>
@@ -78,10 +83,13 @@
   <button class="icon" title="AI chat (Ctrl+I)" onclick={onToggleAi}>
     <Bot size={16} />
   </button>
+  <button class="icon" title="Terminál (Ctrl+`)" onclick={onToggleTerminal}>
+    <SquareTerminal size={16} />
+  </button>
+  <span class="grow"></span>
   <button class="icon" title="Nastavení (Ctrl+,)" onclick={onOpenSettings}>
     <Settings size={16} />
   </button>
-  <span class="brand">Facet</span>
 </div>
 
 <style>
@@ -121,10 +129,7 @@
     background: var(--border);
   }
 
-  .brand {
-    margin-left: auto;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    color: var(--fg-dim);
+  .grow {
+    flex: 1;
   }
 </style>

@@ -17,8 +17,8 @@ export class TauriFileSystem implements FileSystemPort {
     return invoke<string>("read_text_file", { path });
   }
 
-  writeTextFile(path: string, contents: string): Promise<void> {
-    return invoke<void>("write_text_file", { path, contents });
+  writeTextFile(path: string, contents: string, encoding?: string): Promise<void> {
+    return invoke<void>("write_text_file", { path, contents, encoding: encoding ?? null });
   }
 
   fileInfo(path: string): Promise<FileInfo> {

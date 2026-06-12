@@ -14,6 +14,8 @@
   import SettingsModal from "./lib/components/settings/SettingsModal.svelte";
   import RenameModal from "./lib/components/rename/RenameModal.svelte";
   import AiChatPanel from "./lib/components/ai/AiChatPanel.svelte";
+  import { allTemplates } from "./lib/domain/newFileTemplates";
+  import { ENCODINGS } from "./lib/domain/encodings";
   import { Files, GitBranch, Search } from "@lucide/svelte";
   import { loadUserTemplates } from "./lib/config/loadTemplates";
   import { Autosave } from "./lib/application/autosave";
@@ -30,8 +32,9 @@
   let sidebarView = $state<"files" | "search" | "scm">("files");
   let historyOpen = $state(false);
   let aiOpen = $state(false);
+  let terminalOpen = $state(false);
   let settingsOpen = $state(false);
-  let palette = $state<"none" | "files" | "commands">("none");
+  let palette = $state<"none" | "files" | "commands" | "newfile" | "encoding">("none");
   let paletteFiles = $state<{ id: string; label: string }[]>([]);
   let resizing = false;
 
@@ -41,6 +44,9 @@
       toggleHistory: () => (historyOpen = !historyOpen),
       openSettings: () => (settingsOpen = true),
       showAi: () => (aiOpen = true),
+      openNewFile: () => (palette = "newfile"),
+      toggleTerminal: () => (terminalOpen = !terminalOpen),
+      pickEncoding: () => (palette = "encoding"),
       showFiles: () => {
         sidebarView = "files";
         sidebarOpen = true;
@@ -71,6 +77,17 @@
       void workspace.openPath(id);
     } else if (palette === "commands") {
       commands.find((c) => c.id === id)?.run();
+    } else if (palette === "newfile") {
+      if (id === "empty") {
+        workspace.newFile();
+      } else {
+        const tpl = allTemplates(workspace.settings.current.fileTemplates).find(
+          (t) => t.id === id,
+        );
+        if (tpl) workspace.newFileFromTemplate(tpl);
+      }
+    } else if (palette === "encoding") {
+      void workspace.convertEncoding(id);
     }
     palette = "none";
   }
@@ -105,7 +122,11 @@
         break;
       case "n":
         e.preventDefault();
-        workspace.newFile();
+        palette = "newfile";
+        break;
+      case "`":
+        e.preventDefault();
+        terminalOpen = !terminalOpen;
         break;
       case "b":
         e.preventDefault();
@@ -186,6 +207,8 @@
     onToggleSidebar={() => (sidebarOpen = !sidebarOpen)}
     onToggleHistory={() => (historyOpen = !historyOpen)}
     onToggleAi={() => (aiOpen = !aiOpen)}
+    onToggleTerminal={() => (terminalOpen = !terminalOpen)}
+    onNewFile={() => (palette = "newfile")}
     onOpenSettings={() => (settingsOpen = true)}
   />
   <div class="body">
@@ -254,7 +277,15 @@
       </aside>
     {/if}
   </div>
-  <StatusBar />
+  {#if terminalOpen}
+    <div class="terminal-wrap">
+      <!-- xterm.js se načítá lazy až při prvním otevření terminálu -->
+      {#await import("./lib/components/terminal/TerminalPanel.svelte") then { default: TerminalPanel }}
+        <TerminalPanel onClose={() => (terminalOpen = false)} />
+      {/await}
+    </div>
+  {/if}
+  <StatusBar onEncodingClick={() => (palette = "encoding")} />
 </div>
 
 {#if palette === "files"}
@@ -268,6 +299,27 @@
   <Palette
     placeholder="Příkaz…"
     items={commands.map((c) => ({ id: c.id, label: c.title, hint: c.hint }))}
+    onPick={onPalettePick}
+    onClose={() => (palette = "none")}
+  />
+{:else if palette === "newfile"}
+  <Palette
+    placeholder="Nový soubor — šablona…"
+    items={[
+      { id: "empty", label: "Prázdný textový soubor" },
+      ...allTemplates(workspace.settings.current.fileTemplates).map((t) => ({
+        id: t.id,
+        label: `${t.name}`,
+        hint: `.${t.extension}`,
+      })),
+    ]}
+    onPick={onPalettePick}
+    onClose={() => (palette = "none")}
+  />
+{:else if palette === "encoding"}
+  <Palette
+    placeholder="Převést kódování na…"
+    items={ENCODINGS.map((e) => ({ id: e.id, label: e.label }))}
     onPick={onPalettePick}
     onClose={() => (palette = "none")}
   />
@@ -378,6 +430,12 @@
     flex: 0 0 340px;
     background: var(--bg-elev);
     border-left: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .terminal-wrap {
+    flex: 0 0 260px;
+    border-top: 1px solid var(--border);
     overflow: hidden;
   }
 </style>

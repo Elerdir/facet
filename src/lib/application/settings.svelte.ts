@@ -39,6 +39,15 @@ export class SettingsStore {
     if (typeof document !== "undefined") {
       document.documentElement.dataset.theme = this.current.theme;
     }
+    // Sync the native window chrome (title bar) with the app theme.
+    void (async () => {
+      try {
+        const { getCurrentWindow } = await import("@tauri-apps/api/window");
+        await getCurrentWindow().setTheme(this.current.theme);
+      } catch {
+        // Outside Tauri (tests) — ignore.
+      }
+    })();
   }
 
   async #path(): Promise<string> {

@@ -199,6 +199,34 @@ describe("Workspace open flow", () => {
     expect(prompt).toContain("Vysvětli");
   });
 
+  it("creates a new file from a template with extension and content", () => {
+    const { ws } = setup();
+    ws.newFileFromTemplate({
+      id: "rust",
+      name: "Rust",
+      extension: "rs",
+      content: "fn main() {}\n",
+      builtin: true,
+    });
+    const buf = ws.buffers.get(ws.layout.activeTabId!)!;
+    expect(buf.name.endsWith(".rs")).toBe(true);
+    expect(buf.content).toBe("fn main() {}\n");
+    expect(buf.path).toBeNull();
+  });
+
+  it("converts the active file's encoding and rewrites it", async () => {
+    const { fs, ws } = setup();
+    fs.files.set("/a.txt", "Žluťoučký");
+    await ws.openPath("/a.txt");
+
+    await ws.convertEncoding("utf-16le");
+
+    const buf = ws.buffers.get(ws.layout.activeTabId!)!;
+    expect(buf.encoding).toBe("utf-16le");
+    expect(fs.writtenEncodings.get("/a.txt")).toBe("utf-16le");
+    expect(ws.buffers.isDirty(buf)).toBe(false);
+  });
+
   it("keeps unsaved local edits when the file changes externally", async () => {
     const { fs, ws } = setup();
     fs.files.set("/a.txt", "v1");
