@@ -199,11 +199,38 @@ describe("Workspace open flow", () => {
     expect(prompt).toContain("Vysvětli");
   });
 
+  it("clones a repo into the picked folder with token auth and opens it", async () => {
+    const { dialog, vcs, ws } = setup();
+    ws.settings.current = { ...ws.settings.current, githubToken: "ghp_tok" };
+    dialog.openFolderResult = "E:/Projekty";
+
+    const target = await ws.cloneRepo("https://github.com/user/facet.git");
+
+    expect(target).toBe("E:/Projekty/facet");
+    expect(vcs.cloned).toHaveLength(1);
+    expect(vcs.cloned[0].url).toBe("https://github.com/user/facet.git");
+    expect(vcs.cloned[0].target).toBe("E:/Projekty/facet");
+    expect(vcs.cloned[0].auth).toBe(btoa("x-access-token:ghp_tok"));
+    expect(ws.explorer.rootPath).toBe("E:/Projekty/facet");
+  });
+
+  it("initRepo initializes git in the opened folder", async () => {
+    const { fs, dialog, vcs, ws } = setup();
+    fs.files.set("/proj/a.ts", "x");
+    dialog.openFolderResult = "/proj";
+    vcs.repoStatus = { isRepo: false, branch: null, files: [] };
+    await ws.openFolder();
+
+    await ws.initRepo();
+    expect(vcs.inits).toEqual(["/proj"]);
+  });
+
   it("creates a new file from a template with extension and content", () => {
     const { ws } = setup();
     ws.newFileFromTemplate({
-      id: "rust",
-      name: "Rust",
+      id: "rust-main",
+      language: "Rust",
+      name: "Program",
       extension: "rs",
       content: "fn main() {}\n",
       builtin: true,

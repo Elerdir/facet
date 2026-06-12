@@ -169,9 +169,38 @@ export class FakeVcs implements VcsPort {
       all: [...this.branchesResult.all, name],
     };
   }
-  async sync(_repo: string, op: SyncOp): Promise<string> {
+  syncAuths: (string | null)[] = [];
+  remoteUrlResult: string | null = null;
+  inits: string[] = [];
+  cloned: { url: string; target: string; auth: string | null }[] = [];
+  identity = { name: "", email: "" };
+
+  async sync(_repo: string, op: SyncOp, auth?: string | null): Promise<string> {
     this.syncs.push(op);
+    this.syncAuths.push(auth ?? null);
     return `${op} ok`;
+  }
+
+  async init(path: string): Promise<void> {
+    this.inits.push(path);
+    this.repoStatus = { ...this.repoStatus, isRepo: true };
+  }
+
+  async clone(url: string, target: string, auth?: string | null): Promise<string> {
+    this.cloned.push({ url, target, auth: auth ?? null });
+    return "Cloning…";
+  }
+
+  async remoteUrl(): Promise<string | null> {
+    return this.remoteUrlResult;
+  }
+
+  async getIdentity(): Promise<{ name: string; email: string }> {
+    return this.identity;
+  }
+
+  async setIdentity(name: string, email: string): Promise<void> {
+    this.identity = { name, email };
   }
 
   logResult: Commit[] = [];

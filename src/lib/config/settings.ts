@@ -12,6 +12,9 @@ export interface Settings {
   editorFontFamily: string;
   editorFontSize: number;
   fileTemplates: CustomTemplate[];
+  githubToken: string;
+  gitlabToken: string;
+  gitlabHost: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -25,6 +28,9 @@ export const DEFAULT_SETTINGS: Settings = {
   editorFontFamily: '"Cascadia Code", "JetBrains Mono", Consolas, monospace',
   editorFontSize: 13,
   fileTemplates: [],
+  githubToken: "",
+  gitlabToken: "",
+  gitlabHost: "gitlab.com",
 };
 
 function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
@@ -87,5 +93,11 @@ export function parseSettings(raw: string): Settings {
             content: t.content as string,
           }))
       : [],
+    githubToken: typeof r.githubToken === "string" ? r.githubToken : "",
+    gitlabToken: typeof r.gitlabToken === "string" ? r.gitlabToken : "",
+    gitlabHost:
+      typeof r.gitlabHost === "string" && r.gitlabHost.trim() !== ""
+        ? r.gitlabHost.trim()
+        : DEFAULT_SETTINGS.gitlabHost,
   };
 }

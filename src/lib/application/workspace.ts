@@ -12,6 +12,7 @@ import { ReferencesUiStore } from "./referencesUi.svelte";
 import { AiChatStore } from "./ai.svelte";
 import { TextFormatStore } from "./textFormat.svelte";
 import type { NewFileTemplate } from "../domain/newFileTemplates";
+import { authHeaderFor, repoNameFromUrl } from "../domain/gitAuth";
 import {
   buildCommitPrompt,
   buildSelectionPrompt,
@@ -82,7 +83,9 @@ export class Workspace {
     this.explorer = new ExplorerStore(fs);
     this.history = new HistoryStore(history);
     this.compare = new CompareStore(diff);
-    this.vcs = new VcsStore(vcs);
+    this.vcs = new VcsStore(vcs, (remoteUrl) =>
+      authHeaderFor(remoteUrl, this.settings.current),
+    );
     this.formatter = new FormatterService(formatter);
     this.settings = new SettingsStore(fs);
     this.lsp = new LspManager(lsp);
@@ -262,6 +265,27 @@ export class Workspace {
 
   closeCompare(): void {
     this.compare.clear();
+  }
+
+  /** Initialize a git repo in the currently opened folder. */
+  async initRepo(): Promise<void> {
+    const root = this.explorer.rootPath;
+    if (root) await this.vcs.init(root);
+  }
+
+  /**
+   * Clone a repository: asks for the target parent folder, clones into
+   * `<parent>/<repo>` (with a token credential when one matches) and opens it.
+   * Returns the target path.
+   */
+  async cloneRepo(url: string): Promise<string> {
+    const parent = await this.#dialog.openFolder();
+    if (!parent) throw new Error("Nevybrána cílová složka.");
+    const target = `${parent.replace(/[\\/]+$/, "")}/${repoNameFromUrl(url)}`;
+    await this.vcs.clone(url, target, authHeaderFor(url, this.settings.current));
+    await this.explorer.openFolder(target);
+    await this.vcs.refresh(target);
+    return target;
   }
 
   /** Show a file's git diff against HEAD in the comparison view. */

@@ -85,6 +85,33 @@ describe("VcsStore", () => {
     expect(out).toBe("push ok");
   });
 
+  it("passes a token credential to sync based on the remote URL", async () => {
+    const port = new FakeVcs();
+    port.remoteUrlResult = "https://github.com/u/r.git";
+    const store = new VcsStore(port, (url) =>
+      url?.includes("github.com") ? "B64CRED" : null,
+    );
+    await store.refresh("/repo");
+    await store.sync("push");
+    expect(port.syncAuths).toEqual(["B64CRED"]);
+  });
+
+  it("init creates a repo and refreshes status", async () => {
+    const port = new FakeVcs();
+    port.repoStatus = { isRepo: false, branch: null, files: [] };
+    const store = new VcsStore(port);
+    await store.init("/folder");
+    expect(port.inits).toEqual(["/folder"]);
+    expect(store.status.isRepo).toBe(true);
+  });
+
+  it("reads and writes the git identity through the port", async () => {
+    const port = new FakeVcs();
+    const store = new VcsStore(port);
+    await store.setIdentity("Ladik", "ladik@example.com");
+    expect(await store.getIdentity()).toEqual({ name: "Ladik", email: "ladik@example.com" });
+  });
+
   it("loads the commit log on refresh", async () => {
     const port = new FakeVcs();
     port.logResult = [
