@@ -17,6 +17,18 @@ export interface Settings {
   gitlabHost: string;
 }
 
+/** Settings that are secrets: stored in the OS credential store, never in
+ * settings.json. (Plaintext values found in the file are migrated out.) */
+export const SECRET_SETTINGS_KEYS = ["aiApiKey", "githubToken", "gitlabToken"] as const;
+export type SecretSettingKey = (typeof SECRET_SETTINGS_KEYS)[number];
+
+/** Copy of the settings with all secret fields blanked (safe to write to disk). */
+export function stripSecrets(settings: Settings): Settings {
+  const out = { ...settings };
+  for (const key of SECRET_SETTINGS_KEYS) out[key] = "";
+  return out;
+}
+
 export const DEFAULT_SETTINGS: Settings = {
   autosaveEnabled: true,
   autosaveSeconds: 30,

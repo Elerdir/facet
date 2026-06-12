@@ -18,6 +18,7 @@ import type { SearchMatch } from "../../domain/search";
 import type { LspTransport } from "../../ports/lsp";
 import type { WatcherPort } from "../../ports/watcher";
 import type { AiPort, AiRequest } from "../../ports/ai";
+import type { SecretsPort } from "../../ports/secrets";
 import { encodeMessage, MessageBuffer, type JsonRpcMessage } from "../../lsp/protocol";
 
 /** In-memory FileSystemPort for unit tests. */
@@ -302,6 +303,20 @@ export class FakeWatcher implements WatcherPort {
   /** Simulate an external change. */
   trigger(paths: string[]): void {
     this.#handler?.(paths);
+  }
+}
+
+/** In-memory SecretsPort for unit tests. */
+export class FakeSecrets implements SecretsPort {
+  values = new Map<string, string>();
+
+  async get(name: string): Promise<string | null> {
+    return this.values.get(name) ?? null;
+  }
+
+  async set(name: string, value: string): Promise<void> {
+    if (value === "") this.values.delete(name);
+    else this.values.set(name, value);
   }
 }
 
