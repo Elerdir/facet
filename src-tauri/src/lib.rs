@@ -3,6 +3,7 @@ mod detect;
 mod diff;
 mod history;
 mod lsp;
+mod secrets;
 mod terminal;
 mod vcs;
 mod watch;
@@ -66,6 +67,8 @@ pub fn run() {
             terminal::term_write,
             terminal::term_resize,
             terminal::term_kill,
+            secrets::secret_get,
+            secrets::secret_set,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

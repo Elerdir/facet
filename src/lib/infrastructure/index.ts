@@ -7,6 +7,7 @@ import { TauriVcs } from "./tauriVcs";
 import { TauriFormatter } from "./tauriFormatter";
 import { TauriLsp } from "./tauriLsp";
 import { TauriWatcher } from "./tauriWatcher";
+import { TauriSecrets } from "./tauriSecrets";
 import { ClaudeAi } from "./claudeAi";
 
 /**
@@ -23,4 +24,5 @@ export const workspace = new Workspace(
   new TauriLsp(),
   new ClaudeAi(),
   new TauriWatcher(),
+  new TauriSecrets(),
 );

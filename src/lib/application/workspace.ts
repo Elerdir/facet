@@ -31,6 +31,7 @@ import type { FileSystemPort } from "../ports/fileSystem";
 import type { SearchMatch } from "../domain/search";
 import type { LspTransport } from "../ports/lsp";
 import type { WatcherPort } from "../ports/watcher";
+import type { SecretsPort } from "../ports/secrets";
 import type { DialogPort } from "../ports/dialog";
 import type { HistoryPort } from "../ports/history";
 import type { DiffPort } from "../ports/diff";
@@ -77,6 +78,7 @@ export class Workspace {
     lsp: LspTransport,
     ai: AiPort,
     watcher: WatcherPort | null = null,
+    secrets: SecretsPort | null = null,
   ) {
     this.buffers = new BufferStore(fs, dialog);
     this.layout = new LayoutStore();
@@ -87,7 +89,7 @@ export class Workspace {
       authHeaderFor(remoteUrl, this.settings.current),
     );
     this.formatter = new FormatterService(formatter);
-    this.settings = new SettingsStore(fs);
+    this.settings = new SettingsStore(fs, secrets);
     this.lsp = new LspManager(lsp);
     this.ai = new AiChatStore(ai, this.settings);
     this.#fs = fs;

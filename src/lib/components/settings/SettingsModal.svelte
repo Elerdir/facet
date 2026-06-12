@@ -349,7 +349,9 @@
 
         <div class="note">
           Tokeny se použijí při klonování a push/pull/fetch přes HTTPS, když
-          adresa odpovídá GitHubu / GitLabu. Ukládají se lokálně do settings.json.
+          adresa odpovídá GitHubu / GitLabu. Ukládají se šifrovaně ve správci
+          pověření systému (Windows Credential Manager / macOS Keychain) —
+          nikdy v souboru nastavení.
         </div>
       {:else}
         <label class="row">
@@ -375,6 +377,11 @@
             {/each}
           </select>
         </label>
+
+        <div class="note">
+          API klíč se ukládá šifrovaně ve správci pověření systému — nikdy
+          v souboru nastavení.
+        </div>
       {/if}
     </div>
   </div>
