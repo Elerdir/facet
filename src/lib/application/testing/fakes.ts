@@ -28,6 +28,8 @@ export class FakeFileSystem implements FileSystemPort {
   infos = new Map<string, FileInfo>();
   /** Explicit raw bytes; otherwise derived from `files` as UTF-8. */
   chunks = new Map<string, Uint8Array>();
+  /** Encoding passed to the last write per path (for convert-encoding tests). */
+  writtenEncodings = new Map<string, string | undefined>();
 
   async readTextFile(path: string): Promise<string> {
     const content = this.files.get(path);
@@ -35,8 +37,9 @@ export class FakeFileSystem implements FileSystemPort {
     return content;
   }
 
-  async writeTextFile(path: string, contents: string): Promise<void> {
+  async writeTextFile(path: string, contents: string, encoding?: string): Promise<void> {
     this.files.set(path, contents);
+    this.writtenEncodings.set(path, encoding);
   }
 
   async fileInfo(path: string): Promise<FileInfo> {

@@ -34,12 +34,13 @@ export class BufferStore {
     return isDirty(b);
   }
 
-  createUntitled(content = "", name?: string): Buffer {
+  createUntitled(content = "", name?: string, extension?: string): Buffer {
     this.#untitled += 1;
+    const suffix = extension ? `.${extension}` : "";
     const buf: Buffer = {
       id: this.#nextId(),
       path: null,
-      name: name ?? `bez názvu ${this.#untitled}`,
+      name: name ?? `bez názvu ${this.#untitled}${suffix}`,
       content,
       savedContent: "",
       encoding: "UTF-8",
@@ -90,7 +91,9 @@ export class BufferStore {
       b.path = path;
       b.name = basename(path);
     }
-    await this.#fs.writeTextFile(path, b.content);
+    // Preserve the file's (or user-chosen) encoding when saving.
+    const encoding = b.binary || b.encoding === "" ? undefined : b.encoding;
+    await this.#fs.writeTextFile(path, b.content, encoding);
     b.savedContent = b.content;
     return true;
   }

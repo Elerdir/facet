@@ -3,6 +3,7 @@ mod detect;
 mod diff;
 mod history;
 mod lsp;
+mod terminal;
 mod vcs;
 mod watch;
 
@@ -13,6 +14,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             // Open (and create) the local-history database in the app data dir.
             let dir = app.path().app_data_dir()?;
@@ -22,6 +24,7 @@ pub fn run() {
             app.manage(history::HistoryDb(std::sync::Mutex::new(conn)));
             app.manage(lsp::LspProcesses::default());
             app.manage(watch::FsWatcher::default());
+            app.manage(terminal::Terminals::default());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -54,6 +57,10 @@ pub fn run() {
             lsp::lsp_send,
             lsp::lsp_stop,
             watch::watch_folder,
+            terminal::term_start,
+            terminal::term_write,
+            terminal::term_resize,
+            terminal::term_kill,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

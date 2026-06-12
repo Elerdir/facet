@@ -52,6 +52,10 @@
       <CodeEditor
         {buffer}
         theme={ws.settings.current.theme}
+        fontFamily={ws.settings.current.editorFontFamily}
+        fontSize={ws.settings.current.editorFontSize}
+        formatRequest={isActivePane ? ws.textFormat.request : null}
+        onFormatConsumed={() => ws.textFormat.consume()}
         {revealLine}
         {blame}
         {lspDiagnostics}

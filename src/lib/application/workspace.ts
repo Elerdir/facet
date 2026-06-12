@@ -10,6 +10,8 @@ import { EditorStatusStore } from "./editorStatus.svelte";
 import { RenameUiStore } from "./renameUi.svelte";
 import { ReferencesUiStore } from "./referencesUi.svelte";
 import { AiChatStore } from "./ai.svelte";
+import { TextFormatStore } from "./textFormat.svelte";
+import type { NewFileTemplate } from "../domain/newFileTemplates";
 import {
   buildCommitPrompt,
   buildSelectionPrompt,
@@ -55,6 +57,7 @@ export class Workspace {
   readonly referencesUi = new ReferencesUiStore();
   readonly lsp: LspManager;
   readonly ai: AiChatStore;
+  readonly textFormat = new TextFormatStore();
 
   #fs: FileSystemPort;
   #dialog: DialogPort;
@@ -209,6 +212,25 @@ export class Workspace {
     const buf = this.buffers.createUntitled();
     this.layout.openInActiveLeaf(buf.id);
     this.#schedulePersist();
+  }
+
+  /** New untitled buffer pre-filled from a template, named with its extension. */
+  newFileFromTemplate(template: NewFileTemplate): void {
+    const buf = this.buffers.createUntitled(template.content, undefined, template.extension);
+    this.layout.openInActiveLeaf(buf.id);
+    this.#schedulePersist();
+  }
+
+  /** Re-encode the active file (writes immediately when it has a path). */
+  async convertEncoding(encodingId: string): Promise<void> {
+    const id = this.layout.activeTabId;
+    const buf = id ? this.buffers.get(id) : null;
+    if (!buf || buf.binary) return;
+    buf.encoding = encodingId;
+    if (buf.path) {
+      await this.#fs.writeTextFile(buf.path, buf.content, encodingId);
+      buf.savedContent = buf.content;
+    }
   }
 
   async openPath(path: string): Promise<void> {

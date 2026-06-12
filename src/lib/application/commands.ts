@@ -16,12 +16,16 @@ export interface UiActions {
   showSearch: () => void;
   showScm: () => void;
   showAi: () => void;
+  openNewFile: () => void;
+  toggleTerminal: () => void;
+  pickEncoding: () => void;
 }
 
 /** The built-in command set surfaced in the command palette. */
 export function coreCommands(ws: Workspace, ui: UiActions): Command[] {
   return [
-    { id: "file.new", title: "Nový soubor", hint: "Ctrl+N", run: () => ws.newFile() },
+    { id: "file.new", title: "Nový soubor…", hint: "Ctrl+N", run: ui.openNewFile },
+    { id: "file.encoding", title: "Soubor: Převést kódování…", run: ui.pickEncoding },
     { id: "file.open", title: "Otevřít soubor…", hint: "Ctrl+O", run: () => void ws.openFromDialog() },
     { id: "file.openFolder", title: "Otevřít složku…", run: () => void ws.openFolder() },
     { id: "file.save", title: "Uložit", hint: "Ctrl+S", run: () => void ws.saveActive() },
@@ -36,6 +40,12 @@ export function coreCommands(ws: Workspace, ui: UiActions): Command[] {
     { id: "view.scm", title: "Zobrazit změny (Git)", run: ui.showScm },
     { id: "view.history", title: "Přepnout historii", hint: "Ctrl+H", run: ui.toggleHistory },
     { id: "tools.compare", title: "Porovnat soubory…", run: () => void ws.pickAndCompare() },
+    { id: "view.terminal", title: "Terminál: Přepnout", hint: "Ctrl+`", run: ui.toggleTerminal },
+    { id: "fmt.bold", title: "Formát: Tučně (výběr)", run: () => ws.textFormat.apply("bold") },
+    { id: "fmt.italic", title: "Formát: Kurzíva (výběr)", run: () => ws.textFormat.apply("italic") },
+    { id: "fmt.underline", title: "Formát: Podtržení (výběr)", run: () => ws.textFormat.apply("underline") },
+    { id: "fmt.strike", title: "Formát: Přeškrtnutí (výběr)", run: () => ws.textFormat.apply("strikethrough") },
+    { id: "fmt.code", title: "Formát: Kód (výběr)", run: () => ws.textFormat.apply("code") },
     { id: "ai.chat", title: "AI: Otevřít chat", hint: "Ctrl+I", run: ui.showAi },
     {
       id: "ai.explain",

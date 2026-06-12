@@ -8,7 +8,8 @@ import type { SearchMatch } from "../domain/search";
  */
 export interface FileSystemPort {
   readTextFile(path: string): Promise<string>;
-  writeTextFile(path: string, contents: string): Promise<void>;
+  /** Write text; `encoding` (e.g. "utf-16le") re-encodes, default UTF-8. */
+  writeTextFile(path: string, contents: string, encoding?: string): Promise<void>;
   /** Size, binary flag and encoding without loading the whole file. */
   fileInfo(path: string): Promise<FileInfo>;
   /** Read a window of raw bytes (for the hex view / large files). */
