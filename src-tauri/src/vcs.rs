@@ -375,13 +375,19 @@ pub fn git_create_branch(repo: String, name: String) -> Result<(), String> {
 }
 
 /// Network operations (fetch/pull/push) via the `git` CLI — the bundled libgit2
-/// is built without networking. Runs in the repo directory.
+/// is built without networking. `auth` is an optional base64 basic credential
+/// (GitHub/GitLab token) injected per-invocation, never written to config.
 #[tauri::command]
-pub fn git_sync(repo: String, op: String) -> Result<String, String> {
+pub fn git_sync(repo: String, op: String, auth: Option<String>) -> Result<String, String> {
     if !matches!(op.as_str(), "fetch" | "pull" | "push") {
         return Err(format!("Neznámá operace: {op}"));
     }
-    let output = Command::new("git")
+    let mut cmd = Command::new("git");
+    if let Some(b64) = &auth {
+        cmd.arg("-c")
+            .arg(format!("http.extraheader=AUTHORIZATION: basic {b64}"));
+    }
+    let output = cmd
         .arg(&op)
         .current_dir(&repo)
         .output()
@@ -391,6 +397,69 @@ pub fn git_sync(repo: String, op: String) -> Result<String, String> {
     } else {
         Err(String::from_utf8_lossy(&output.stderr).trim().to_string())
     }
+}
+
+/// Clone a repository via the `git` CLI; auth handled like in `git_sync`.
+#[tauri::command]
+pub fn git_clone(url: String, target: String, auth: Option<String>) -> Result<String, String> {
+    let mut cmd = Command::new("git");
+    if let Some(b64) = &auth {
+        cmd.arg("-c")
+            .arg(format!("http.extraheader=AUTHORIZATION: basic {b64}"));
+    }
+    let output = cmd
+        .arg("clone")
+        .arg(&url)
+        .arg(&target)
+        .output()
+        .map_err(|e| format!("Nelze spustit git: {e}"))?;
+    if output.status.success() {
+        // git clone reports progress on stderr even on success
+        Ok(String::from_utf8_lossy(&output.stderr).trim().to_string())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).trim().to_string())
+    }
+}
+
+/// Initialize a new git repository in the given folder.
+#[tauri::command]
+pub fn git_init(path: String) -> Result<(), String> {
+    Repository::init(&path).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// URL of the `origin` remote, or null when there is none.
+#[tauri::command]
+pub fn git_remote_url(repo: String) -> Result<Option<String>, String> {
+    let repository = Repository::open(&repo).map_err(|e| e.to_string())?;
+    Ok(repository
+        .find_remote("origin")
+        .ok()
+        .and_then(|r| r.url().map(|u| u.to_string())))
+}
+
+#[derive(serde::Serialize)]
+pub struct GitIdentity {
+    name: String,
+    email: String,
+}
+
+/// Read the global git identity (user.name / user.email).
+#[tauri::command]
+pub fn git_get_identity() -> Result<GitIdentity, String> {
+    let config = git2::Config::open_default().map_err(|e| e.to_string())?;
+    Ok(GitIdentity {
+        name: config.get_string("user.name").unwrap_or_default(),
+        email: config.get_string("user.email").unwrap_or_default(),
+    })
+}
+
+/// Set the global git identity used for commits.
+#[tauri::command]
+pub fn git_set_identity(name: String, email: String) -> Result<(), String> {
+    let mut config = git2::Config::open_default().map_err(|e| e.to_string())?;
+    config.set_str("user.name", &name).map_err(|e| e.to_string())?;
+    config.set_str("user.email", &email).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -509,6 +578,21 @@ mod tests {
         assert_eq!(blame.len(), 2);
         assert_eq!(blame[0].line, 1);
         assert_eq!(blame[0].author, "Test");
+    }
+
+    #[test]
+    fn init_creates_a_repo_and_remote_url_reads_origin() {
+        let dir = tempdir().unwrap();
+        let p = dir.path().to_string_lossy().to_string();
+        git_init(p.clone()).unwrap();
+        let repo = Repository::open(dir.path()).unwrap();
+        assert!(GitVcs.status(&p).is_repo);
+        assert_eq!(git_remote_url(p.clone()).unwrap(), None);
+        repo.remote("origin", "https://github.com/user/proj.git").unwrap();
+        assert_eq!(
+            git_remote_url(p).unwrap().as_deref(),
+            Some("https://github.com/user/proj.git")
+        );
     }
 
     #[test]

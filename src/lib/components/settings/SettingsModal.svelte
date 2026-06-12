@@ -2,15 +2,50 @@
   import { onMount } from "svelte";
   import { getWorkspace } from "../../application/context";
   import { AI_MODELS } from "../../domain/ai";
-  import { allTemplates, type NewFileTemplate } from "../../domain/newFileTemplates";
+  import {
+    allTemplates,
+    templateLanguages,
+    type NewFileTemplate,
+  } from "../../domain/newFileTemplates";
+  import { EDITOR_FONTS } from "../../domain/editorFonts";
 
   let { onClose }: { onClose: () => void } = $props();
 
   const ws = getWorkspace();
   const s = $derived(ws.settings.current);
 
-  type Tab = "general" | "editor" | "templates" | "ai";
+  type Tab = "general" | "editor" | "templates" | "git" | "ai";
   let tab = $state<Tab>("general");
+
+  // --- Git identita ---------------------------------------------------------
+  let gitName = $state("");
+  let gitEmail = $state("");
+  let gitMsg = $state("");
+  let identityLoaded = false;
+
+  $effect(() => {
+    if (tab === "git" && !identityLoaded) {
+      identityLoaded = true;
+      void ws.vcs
+        .getIdentity()
+        .then((id) => {
+          gitName = id.name;
+          gitEmail = id.email;
+        })
+        .catch(() => {});
+    }
+  });
+
+  async function saveIdentity() {
+    try {
+      await ws.vcs.setIdentity(gitName.trim(), gitEmail.trim());
+      gitMsg = "Identita uložena (git config --global).";
+    } catch (e) {
+      gitMsg = `Nepodařilo se uložit: ${e}`;
+    }
+  }
+
+  const fontIsPreset = $derived(EDITOR_FONTS.some((f) => f.value === s.editorFontFamily));
 
   // --- O aplikaci / aktualizace (UpdateHub) --------------------------------
   let version = $state("…");
@@ -105,6 +140,7 @@
       <button class="tab" class:active={tab === "general"} onclick={() => (tab = "general")}>Obecné</button>
       <button class="tab" class:active={tab === "editor"} onclick={() => (tab = "editor")}>Editor</button>
       <button class="tab" class:active={tab === "templates"} onclick={() => (tab = "templates")}>Šablony</button>
+      <button class="tab" class:active={tab === "git"} onclick={() => (tab = "git")}>Git</button>
       <button class="tab" class:active={tab === "ai"} onclick={() => (tab = "ai")}>AI</button>
     </div>
 
@@ -183,12 +219,22 @@
       {:else if tab === "editor"}
         <label class="row">
           <span>Písmo editoru</span>
-          <input
-            type="text"
+          <select
             class="wide"
-            value={s.editorFontFamily}
-            onchange={(e) => ws.settings.update({ editorFontFamily: e.currentTarget.value })}
-          />
+            value={fontIsPreset ? s.editorFontFamily : "custom"}
+            onchange={(e) => {
+              if (e.currentTarget.value !== "custom") {
+                void ws.settings.update({ editorFontFamily: e.currentTarget.value });
+              }
+            }}
+          >
+            {#each EDITOR_FONTS as f (f.value)}
+              <option value={f.value}>{f.label}</option>
+            {/each}
+            {#if !fontIsPreset}
+              <option value="custom">Vlastní ({s.editorFontFamily})</option>
+            {/if}
+          </select>
         </label>
 
         <label class="row">
@@ -209,21 +255,24 @@
       {:else if tab === "templates"}
         <div class="tpl-grid">
           <div class="tpl-list">
-            {#each templates as tpl (tpl.id)}
-              <button
-                class="tpl-item"
-                class:sel={selectedTemplate?.id === tpl.id}
-                onclick={() => (selectedTemplate = tpl)}
-              >
-                <span>{tpl.name}</span>
-                <span class="ext">.{tpl.extension}</span>
-              </button>
+            {#each templateLanguages(templates) as lang (lang)}
+              <div class="tpl-lang">{lang}</div>
+              {#each templates.filter((t) => t.language === lang) as tpl (tpl.id)}
+                <button
+                  class="tpl-item"
+                  class:sel={selectedTemplate?.id === tpl.id}
+                  onclick={() => (selectedTemplate = tpl)}
+                >
+                  <span>{tpl.name}</span>
+                  <span class="ext">.{tpl.extension}</span>
+                </button>
+              {/each}
             {/each}
           </div>
           <div class="tpl-preview">
             {#if selectedTemplate}
               <div class="tpl-head">
-                Náhled: {selectedTemplate.name} (.{selectedTemplate.extension})
+                Náhled: {selectedTemplate.language}: {selectedTemplate.name} (.{selectedTemplate.extension})
                 {#if !selectedTemplate.builtin}
                   <button
                     class="btn danger"
@@ -248,6 +297,59 @@
           <button class="btn primary" disabled={!newName.trim() || !newExt.trim()} onclick={addTemplate}>
             Přidat šablonu
           </button>
+        </div>
+      {:else if tab === "git"}
+        <div class="section">Identita (jméno a e-mail u commitů)</div>
+        <label class="row">
+          <span>Jméno</span>
+          <input type="text" class="wide" bind:value={gitName} />
+        </label>
+        <label class="row">
+          <span>E-mail</span>
+          <input type="text" class="wide" bind:value={gitEmail} />
+        </label>
+        <div class="row">
+          <button class="btn" onclick={saveIdentity}>Uložit identitu</button>
+        </div>
+        {#if gitMsg}<div class="note">{gitMsg}</div>{/if}
+
+        <div class="section">GitHub</div>
+        <label class="row">
+          <span>Personal Access Token</span>
+          <input
+            type="password"
+            class="wide"
+            placeholder="ghp_… / github_pat_…"
+            value={s.githubToken}
+            onchange={(e) => ws.settings.update({ githubToken: e.currentTarget.value })}
+          />
+        </label>
+
+        <div class="section">GitLab</div>
+        <label class="row">
+          <span>Server</span>
+          <input
+            type="text"
+            class="wide"
+            placeholder="gitlab.com"
+            value={s.gitlabHost}
+            onchange={(e) => ws.settings.update({ gitlabHost: e.currentTarget.value })}
+          />
+        </label>
+        <label class="row">
+          <span>Personal Access Token</span>
+          <input
+            type="password"
+            class="wide"
+            placeholder="glpat-…"
+            value={s.gitlabToken}
+            onchange={(e) => ws.settings.update({ gitlabToken: e.currentTarget.value })}
+          />
+        </label>
+
+        <div class="note">
+          Tokeny se použijí při klonování a push/pull/fetch přes HTTPS, když
+          adresa odpovídá GitHubu / GitLabu. Ukládají se lokálně do settings.json.
         </div>
       {:else}
         <label class="row">
@@ -495,6 +597,14 @@
   }
 
   .tpl-item .ext {
+    color: var(--fg-dim);
+  }
+
+  .tpl-lang {
+    padding: 8px 8px 2px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
     color: var(--fg-dim);
   }
 

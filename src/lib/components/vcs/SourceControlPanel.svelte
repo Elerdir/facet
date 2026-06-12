@@ -17,6 +17,26 @@
   let message = $state("");
   let suggesting = $state(false);
   let creatingBranch = $state(false);
+  let cloneUrl = $state("");
+  let cloning = $state(false);
+  let cloneMsg = $state("");
+  let cloneErr = $state(false);
+
+  async function doClone() {
+    cloning = true;
+    cloneErr = false;
+    cloneMsg = "";
+    try {
+      const target = await ws.cloneRepo(cloneUrl.trim());
+      cloneMsg = `Naklonováno do ${target}`;
+      cloneUrl = "";
+    } catch (e) {
+      cloneErr = true;
+      cloneMsg = e instanceof Error ? e.message : String(e);
+    } finally {
+      cloning = false;
+    }
+  }
   let newBranch = $state("");
   let syncMsg = $state("");
   let syncErr = $state(false);
@@ -87,7 +107,33 @@
   </div>
 
   {#if !ws.vcs.status.isRepo}
-    <div class="empty">Otevřená složka není Git repozitář.</div>
+    {#if ws.explorer.rootPath}
+      <div class="empty">Otevřená složka není Git repozitář.</div>
+      <div class="setup">
+        <button class="setup-btn" onclick={() => void ws.initRepo()}>
+          Inicializovat Git repozitář
+        </button>
+      </div>
+    {:else}
+      <div class="empty">Otevři složku, nebo naklonuj repozitář.</div>
+    {/if}
+    <div class="group-title">Klonovat repozitář</div>
+    <div class="setup">
+      <input
+        placeholder="https://github.com/uzivatel/repo.git"
+        bind:value={cloneUrl}
+      />
+      <button
+        class="setup-btn"
+        disabled={!cloneUrl.trim() || cloning}
+        onclick={doClone}
+      >
+        {cloning ? "Klonuji…" : "Vybrat složku a klonovat"}
+      </button>
+      {#if cloneMsg}
+        <div class="clone-msg" class:err={cloneErr}>{cloneMsg}</div>
+      {/if}
+    </div>
   {:else}
     <div class="branchbar">
       <GitBranch size={13} />
@@ -332,6 +378,48 @@
     flex: 0 0 auto;
     color: var(--fg-dim);
     font-size: 11px;
+  }
+
+  .setup {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 4px 10px 10px;
+  }
+
+  .setup input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--fg);
+    padding: 6px 8px;
+    font-family: inherit;
+    font-size: 12px;
+  }
+
+  .setup-btn {
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    color: var(--fg);
+    padding: 6px 10px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .setup-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .clone-msg {
+    font-size: 12px;
+    color: var(--fg-dim);
+    white-space: pre-wrap;
+  }
+
+  .clone-msg.err {
+    color: var(--danger);
   }
 
   .icon {

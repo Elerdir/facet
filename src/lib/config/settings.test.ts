@@ -15,6 +15,9 @@ describe("parseSettings", () => {
         editorFontFamily: "Fira Code",
         editorFontSize: 16,
         fileTemplates: [{ name: "Moje", extension: ".FOO", content: "x" }],
+        githubToken: "ghp_1",
+        gitlabToken: "glpat_2",
+        gitlabHost: "git.firma.cz",
       }),
     );
     expect(s).toEqual({
@@ -28,6 +31,9 @@ describe("parseSettings", () => {
       editorFontFamily: "Fira Code",
       editorFontSize: 16,
       fileTemplates: [{ name: "Moje", extension: "foo", content: "x" }],
+      githubToken: "ghp_1",
+      gitlabToken: "glpat_2",
+      gitlabHost: "git.firma.cz",
     });
   });
 

@@ -43,8 +43,28 @@ export class TauriVcs implements VcsPort {
     return invoke<void>("git_create_branch", { repo, name });
   }
 
-  sync(repo: string, op: SyncOp): Promise<string> {
-    return invoke<string>("git_sync", { repo, op });
+  sync(repo: string, op: SyncOp, auth?: string | null): Promise<string> {
+    return invoke<string>("git_sync", { repo, op, auth: auth ?? null });
+  }
+
+  init(path: string): Promise<void> {
+    return invoke<void>("git_init", { path });
+  }
+
+  clone(url: string, target: string, auth?: string | null): Promise<string> {
+    return invoke<string>("git_clone", { url, target, auth: auth ?? null });
+  }
+
+  remoteUrl(repo: string): Promise<string | null> {
+    return invoke<string | null>("git_remote_url", { repo });
+  }
+
+  getIdentity(): Promise<{ name: string; email: string }> {
+    return invoke<{ name: string; email: string }>("git_get_identity");
+  }
+
+  setIdentity(name: string, email: string): Promise<void> {
+    return invoke<void>("git_set_identity", { name, email });
   }
 
   log(repo: string, limit: number): Promise<Commit[]> {

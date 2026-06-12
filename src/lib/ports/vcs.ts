@@ -21,9 +21,15 @@ export interface VcsPort {
   branches(repo: string): Promise<Branches>;
   checkout(repo: string, name: string): Promise<void>;
   createBranch(repo: string, name: string): Promise<void>;
-  sync(repo: string, op: SyncOp): Promise<string>;
+  /** `auth` is an optional base64 basic credential for HTTPS remotes. */
+  sync(repo: string, op: SyncOp, auth?: string | null): Promise<string>;
   log(repo: string, limit: number): Promise<Commit[]>;
   blame(repo: string, file: string): Promise<BlameLine[]>;
   /** Unified diff of staged changes against HEAD. */
   stagedDiff(repo: string): Promise<string>;
+  init(path: string): Promise<void>;
+  clone(url: string, target: string, auth?: string | null): Promise<string>;
+  remoteUrl(repo: string): Promise<string | null>;
+  getIdentity(): Promise<{ name: string; email: string }>;
+  setIdentity(name: string, email: string): Promise<void>;
 }

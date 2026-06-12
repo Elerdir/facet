@@ -23,9 +23,14 @@ export class VcsStore {
   repo = $state<string | null>(null);
 
   #port: VcsPort;
+  #getAuth: (remoteUrl: string | null) => string | null;
 
-  constructor(port: VcsPort) {
+  constructor(
+    port: VcsPort,
+    getAuth: (remoteUrl: string | null) => string | null = () => null,
+  ) {
     this.#port = port;
+    this.#getAuth = getAuth;
   }
 
   get grouped(): GroupedChanges {
@@ -77,12 +82,31 @@ export class VcsStore {
     await this.refresh(this.repo);
   }
 
-  /** Run fetch/pull/push; returns the tool output. */
+  /** Run fetch/pull/push (with a token credential when one matches the remote). */
   async sync(op: SyncOp): Promise<string> {
     if (!this.repo) return "";
-    const out = await this.#port.sync(this.repo, op);
+    const remote = await this.#port.remoteUrl(this.repo).catch(() => null);
+    const out = await this.#port.sync(this.repo, op, this.#getAuth(remote));
     await this.refresh(this.repo);
     return out;
+  }
+
+  /** Initialize a git repository in the folder and refresh. */
+  async init(path: string): Promise<void> {
+    await this.#port.init(path);
+    await this.refresh(path);
+  }
+
+  clone(url: string, target: string, auth: string | null): Promise<string> {
+    return this.#port.clone(url, target, auth);
+  }
+
+  getIdentity(): Promise<{ name: string; email: string }> {
+    return this.#port.getIdentity();
+  }
+
+  setIdentity(name: string, email: string): Promise<void> {
+    return this.#port.setIdentity(name, email);
   }
 
   async stage(file: string): Promise<void> {

@@ -309,7 +309,7 @@
       { id: "empty", label: "Prázdný textový soubor" },
       ...allTemplates(workspace.settings.current.fileTemplates).map((t) => ({
         id: t.id,
-        label: `${t.name}`,
+        label: `${t.language}: ${t.name}`,
         hint: `.${t.extension}`,
       })),
     ]}
