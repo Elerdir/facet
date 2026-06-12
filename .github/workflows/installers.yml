@@ -1,0 +1,50 @@
+name: Installers
+
+# Ruční sestavení instalačních balíčků: GitHub → Actions → Installers → Run workflow.
+# Výsledné balíčky (NSIS .exe + .msi pro Windows, .dmg/.app pro macOS) se
+# objeví jako artefakty u běhu workflow — bez vytváření release.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            bundles: src-tauri/target/release/bundle/
+          - platform: macos-latest
+            bundles: src-tauri/target/release/bundle/
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build installers
+        run: npm run tauri build
+
+      - name: Upload installer artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: facet-installers-${{ matrix.platform }}
+          path: |
+            src-tauri/target/release/bundle/nsis/
+            src-tauri/target/release/bundle/msi/
+            src-tauri/target/release/bundle/dmg/
+            src-tauri/target/release/bundle/macos/
+          if-no-files-found: ignore

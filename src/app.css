@@ -1,0 +1,164 @@
+:root {
+  --bg: #1e1e22;
+  --bg-elev: #26262b;
+  --bg-elev-2: #2d2d33;
+  --border: #3a3a42;
+  --fg: #d4d4d8;
+  --fg-dim: #8a8a94;
+  --accent: #4aa3ff;
+  --danger: #ff6b6b;
+
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --bg: #ffffff;
+  --bg-elev: #f4f4f6;
+  --bg-elev-2: #e8e8ec;
+  --border: #d6d6dc;
+  --fg: #1f2328;
+  --fg-dim: #6b7280;
+  --accent: #2563eb;
+  --danger: #dc2626;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  overflow: hidden;
+  user-select: none;
+}
+
+#app {
+  height: 100vh;
+}
+
+button {
+  font-family: inherit;
+  color: inherit;
+}
+
+/* Let CodeMirror own text selection inside the editor */
+.cm-editor,
+.cm-editor * {
+  user-select: text;
+}
+
+/* ------------------------------------------------------------------ */
+/* Markdown preview typography (rendered via {@html}, hence global)    */
+/* ------------------------------------------------------------------ */
+.markdown-body {
+  user-select: text;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4 {
+  line-height: 1.25;
+  margin: 1.4em 0 0.6em;
+  font-weight: 600;
+}
+
+.markdown-body h1 {
+  font-size: 1.9em;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.3em;
+}
+
+.markdown-body h2 {
+  font-size: 1.5em;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.3em;
+}
+
+.markdown-body h3 {
+  font-size: 1.25em;
+}
+
+.markdown-body p,
+.markdown-body ul,
+.markdown-body ol,
+.markdown-body blockquote,
+.markdown-body table {
+  margin: 0 0 1em;
+}
+
+.markdown-body a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.markdown-body a:hover {
+  text-decoration: underline;
+}
+
+.markdown-body code {
+  font-family: "Cascadia Code", "JetBrains Mono", "Consolas", monospace;
+  font-size: 0.9em;
+  background: var(--bg-elev-2);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+}
+
+.markdown-body pre {
+  background: var(--bg-elev-2);
+  padding: 14px 16px;
+  border-radius: 8px;
+  overflow: auto;
+  margin: 0 0 1em;
+}
+
+.markdown-body pre code {
+  background: none;
+  padding: 0;
+}
+
+.markdown-body blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 1em;
+  color: var(--fg-dim);
+}
+
+.markdown-body table {
+  border-collapse: collapse;
+}
+
+.markdown-body th,
+.markdown-body td {
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+}
+
+.markdown-body img {
+  max-width: 100%;
+}
+
+.markdown-body hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.6em 0;
+}
+
+/* LSP hover tooltip (rendered in CodeMirror's tooltip layer, hence global) */
+.cm-lsp-hover {
+  max-width: 480px;
+  padding: 6px 9px;
+  white-space: pre-wrap;
+  font-size: 12.5px;
+  line-height: 1.45;
+}

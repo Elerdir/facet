@@ -1,0 +1,383 @@
+<script lang="ts">
+  import { onMount } from "svelte";
+  import { setWorkspace } from "./lib/application/context";
+  import { workspace } from "./lib/infrastructure";
+  import Toolbar from "./lib/components/Toolbar.svelte";
+  import StatusBar from "./lib/components/StatusBar.svelte";
+  import FileExplorer from "./lib/components/explorer/FileExplorer.svelte";
+  import PaneView from "./lib/components/layout/PaneView.svelte";
+  import HistoryPanel from "./lib/components/history/HistoryPanel.svelte";
+  import CompareView from "./lib/components/compare/CompareView.svelte";
+  import SourceControlPanel from "./lib/components/vcs/SourceControlPanel.svelte";
+  import SearchPanel from "./lib/components/search/SearchPanel.svelte";
+  import Palette from "./lib/components/palette/Palette.svelte";
+  import SettingsModal from "./lib/components/settings/SettingsModal.svelte";
+  import RenameModal from "./lib/components/rename/RenameModal.svelte";
+  import AiChatPanel from "./lib/components/ai/AiChatPanel.svelte";
+  import { Files, GitBranch, Search } from "@lucide/svelte";
+  import { loadUserTemplates } from "./lib/config/loadTemplates";
+  import { Autosave } from "./lib/application/autosave";
+  import { coreCommands } from "./lib/application/commands";
+  import { relativeTo } from "./lib/domain/paths";
+
+  setWorkspace(workspace);
+
+  const autosave = new Autosave(workspace);
+  const compareActive = $derived(workspace.compare.active);
+
+  let sidebarOpen = $state(true);
+  let sidebarWidth = $state(240);
+  let sidebarView = $state<"files" | "search" | "scm">("files");
+  let historyOpen = $state(false);
+  let aiOpen = $state(false);
+  let settingsOpen = $state(false);
+  let palette = $state<"none" | "files" | "commands">("none");
+  let paletteFiles = $state<{ id: string; label: string }[]>([]);
+  let resizing = false;
+
+  const commands = $derived(
+    coreCommands(workspace, {
+      toggleSidebar: () => (sidebarOpen = !sidebarOpen),
+      toggleHistory: () => (historyOpen = !historyOpen),
+      openSettings: () => (settingsOpen = true),
+      showAi: () => (aiOpen = true),
+      showFiles: () => {
+        sidebarView = "files";
+        sidebarOpen = true;
+      },
+      showSearch: () => {
+        sidebarView = "search";
+        sidebarOpen = true;
+      },
+      showScm: () => {
+        sidebarView = "scm";
+        sidebarOpen = true;
+      },
+    }),
+  );
+
+  async function openQuickOpen() {
+    const root = workspace.explorer.rootPath;
+    const files = await workspace.listProjectFiles();
+    paletteFiles = files.map((p) => ({
+      id: p,
+      label: root ? relativeTo(root, p) : p,
+    }));
+    palette = "files";
+  }
+
+  function onPalettePick(id: string) {
+    if (palette === "files") {
+      void workspace.openPath(id);
+    } else if (palette === "commands") {
+      commands.find((c) => c.id === id)?.run();
+    }
+    palette = "none";
+  }
+
+  function onKeydown(e: KeyboardEvent) {
+    if (!e.ctrlKey || e.altKey) return;
+    const key = e.key.toLowerCase();
+    if (e.shiftKey) {
+      if (key === "v") {
+        e.preventDefault();
+        workspace.openPreviewBeside();
+      } else if (key === "f") {
+        e.preventDefault();
+        workspace.formatActive("format");
+      } else if (key === "o") {
+        e.preventDefault();
+        workspace.formatActive("organizeImports");
+      } else if (key === "p") {
+        e.preventDefault();
+        palette = "commands";
+      }
+      return;
+    }
+    switch (key) {
+      case "s":
+        e.preventDefault();
+        workspace.saveActive();
+        break;
+      case "o":
+        e.preventDefault();
+        workspace.openFromDialog();
+        break;
+      case "n":
+        e.preventDefault();
+        workspace.newFile();
+        break;
+      case "b":
+        e.preventDefault();
+        sidebarOpen = !sidebarOpen;
+        break;
+      case "h":
+        e.preventDefault();
+        historyOpen = !historyOpen;
+        break;
+      case "p":
+        e.preventDefault();
+        void openQuickOpen();
+        break;
+      case "i":
+        e.preventDefault();
+        aiOpen = !aiOpen;
+        break;
+      case ",":
+        e.preventDefault();
+        settingsOpen = true;
+        break;
+      case "w": {
+        e.preventDefault();
+        const leaf = workspace.layout.activeLeaf;
+        if (leaf.activeTab) workspace.closeTab(leaf.id, leaf.activeTab);
+        break;
+      }
+    }
+  }
+
+  onMount(() => {
+    window.addEventListener("keydown", onKeydown);
+    void initWorkspace();
+    return () => {
+      window.removeEventListener("keydown", onKeydown);
+      autosave.stop();
+    };
+  });
+
+  async function initWorkspace() {
+    await workspace.settings.load();
+    workspace.history.setRetentionDays(workspace.settings.current.historyRetentionDays);
+    void workspace.history.pruneOld();
+    void loadUserTemplates(); // best-effort: custom file-type templates
+    // Hot exit: bring back unsaved "untitled" buffers from last session.
+    const restored = await workspace.restoreSession();
+    if (restored === 0 && workspace.layout.activeLeaf.tabs.length === 0) {
+      workspace.newFile();
+    }
+  }
+
+  // Drive autosave from settings (restarts whenever they change).
+  $effect(() => {
+    const s = workspace.settings.current;
+    autosave.stop();
+    if (s.autosaveEnabled) autosave.start(s.autosaveSeconds * 1000);
+  });
+
+  function startResize(e: PointerEvent) {
+    resizing = true;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+  function doResize(e: PointerEvent) {
+    if (resizing) sidebarWidth = Math.min(520, Math.max(150, e.clientX));
+  }
+  function endResize(e: PointerEvent) {
+    resizing = false;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+  }
+</script>
+
+<div class="app">
+  <Toolbar
+    onToggleSidebar={() => (sidebarOpen = !sidebarOpen)}
+    onToggleHistory={() => (historyOpen = !historyOpen)}
+    onToggleAi={() => (aiOpen = !aiOpen)}
+    onOpenSettings={() => (settingsOpen = true)}
+  />
+  <div class="body">
+    {#if sidebarOpen}
+      <aside class="sidebar" style="width: {sidebarWidth}px">
+        <div class="side-tabs">
+          <button
+            class="side-tab"
+            class:active={sidebarView === "files"}
+            title="Soubory"
+            onclick={() => (sidebarView = "files")}
+          >
+            <Files size={15} />
+          </button>
+          <button
+            class="side-tab"
+            class:active={sidebarView === "search"}
+            title="Hledat v projektu"
+            onclick={() => (sidebarView = "search")}
+          >
+            <Search size={15} />
+          </button>
+          <button
+            class="side-tab"
+            class:active={sidebarView === "scm"}
+            title="Správa verzí"
+            onclick={() => (sidebarView = "scm")}
+          >
+            <GitBranch size={15} />
+          </button>
+        </div>
+        <div class="side-body">
+          {#if sidebarView === "files"}
+            <FileExplorer />
+          {:else if sidebarView === "search"}
+            <SearchPanel />
+          {:else}
+            <SourceControlPanel />
+          {/if}
+        </div>
+      </aside>
+      <div
+        class="sb-splitter"
+        role="separator"
+        aria-orientation="vertical"
+        onpointerdown={startResize}
+        onpointermove={doResize}
+        onpointerup={endResize}
+      ></div>
+    {/if}
+    <main class="main">
+      {#if compareActive}
+        <CompareView />
+      {:else}
+        <PaneView node={workspace.layout.root} />
+      {/if}
+    </main>
+    {#if historyOpen}
+      <aside class="history-side">
+        <HistoryPanel />
+      </aside>
+    {/if}
+    {#if aiOpen}
+      <aside class="ai-side">
+        <AiChatPanel />
+      </aside>
+    {/if}
+  </div>
+  <StatusBar />
+</div>
+
+{#if palette === "files"}
+  <Palette
+    placeholder="Otevřít soubor…"
+    items={paletteFiles}
+    onPick={onPalettePick}
+    onClose={() => (palette = "none")}
+  />
+{:else if palette === "commands"}
+  <Palette
+    placeholder="Příkaz…"
+    items={commands.map((c) => ({ id: c.id, label: c.title, hint: c.hint }))}
+    onPick={onPalettePick}
+    onClose={() => (palette = "none")}
+  />
+{/if}
+
+{#if settingsOpen}
+  <SettingsModal onClose={() => (settingsOpen = false)} />
+{/if}
+
+{#if workspace.renameUi.request}
+  <RenameModal />
+{/if}
+
+{#if workspace.referencesUi.items}
+  <Palette
+    placeholder="Reference…"
+    items={workspace.referencesUi.items.map((r, i) => ({ id: String(i), label: r.label }))}
+    onPick={(id) => {
+      const r = workspace.referencesUi.items?.[Number(id)];
+      if (r) void workspace.openAt(r.path, r.line);
+      workspace.referencesUi.close();
+    }}
+    onClose={() => workspace.referencesUi.close()}
+  />
+{/if}
+
+<style>
+  .app {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+  }
+
+  .sidebar {
+    flex: 0 0 auto;
+    min-width: 150px;
+    background: var(--bg-elev);
+    border-right: 1px solid var(--border);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .side-tabs {
+    display: flex;
+    gap: 2px;
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--border);
+    flex: 0 0 auto;
+  }
+
+  .side-tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 24px;
+    border: none;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--fg-dim);
+    cursor: pointer;
+  }
+
+  .side-tab:hover,
+  .side-tab.active {
+    background: var(--bg-elev-2);
+    color: var(--fg);
+  }
+
+  .side-body {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .sb-splitter {
+    flex: 0 0 auto;
+    width: 5px;
+    cursor: col-resize;
+    background: var(--border);
+  }
+
+  .sb-splitter:hover {
+    background: var(--accent);
+  }
+
+  .main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+  }
+
+  .history-side {
+    flex: 0 0 280px;
+    background: var(--bg-elev);
+    border-left: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .ai-side {
+    flex: 0 0 340px;
+    background: var(--bg-elev);
+    border-left: 1px solid var(--border);
+    overflow: hidden;
+  }
+</style>
