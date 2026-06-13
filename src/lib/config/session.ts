@@ -1,31 +1,57 @@
-/** Persisted, never-saved ("untitled") buffer — survives restart until closed. */
+/** Persisted session: unsaved buffers, the opened folder, open files and the
+ * active tab — restored on the next start (hot exit + session restore). */
+
 export interface SessionBuffer {
   name: string;
   content: string;
 }
 
-export function serializeSession(items: SessionBuffer[]): string {
-  return JSON.stringify({ untitled: items }, null, 2);
+export interface SessionData {
+  /** Never-saved ("untitled") buffers — survive until closed. */
+  untitled: SessionBuffer[];
+  folder: string | null;
+  files: string[];
+  activePath: string | null;
 }
 
-/** Parse session JSON, dropping malformed entries. Pure and defensive. */
-export function parseSession(raw: string): SessionBuffer[] {
+export const EMPTY_SESSION: SessionData = {
+  untitled: [],
+  folder: null,
+  files: [],
+  activePath: null,
+};
+
+export function serializeSession(data: SessionData): string {
+  return JSON.stringify(data, null, 2);
+}
+
+/** Parse session JSON defensively; tolerates the legacy `{untitled}` format. */
+export function parseSession(raw: string): SessionData {
   try {
     const data: unknown = JSON.parse(raw);
-    if (typeof data === "object" && data !== null) {
-      const list = (data as Record<string, unknown>).untitled;
-      if (Array.isArray(list)) {
-        return list
+    if (typeof data !== "object" || data === null) return { ...EMPTY_SESSION };
+    const r = data as Record<string, unknown>;
+
+    const untitled = Array.isArray(r.untitled)
+      ? r.untitled
           .filter(
             (b): b is { name: unknown; content: unknown } =>
               typeof b === "object" && b !== null,
           )
           .filter((b) => typeof b.name === "string" && typeof b.content === "string")
-          .map((b) => ({ name: b.name as string, content: b.content as string }));
-      }
-    }
+          .map((b) => ({ name: b.name as string, content: b.content as string }))
+      : [];
+
+    return {
+      untitled,
+      folder: typeof r.folder === "string" && r.folder !== "" ? r.folder : null,
+      files: Array.isArray(r.files)
+        ? r.files.filter((f): f is string => typeof f === "string" && f !== "")
+        : [],
+      activePath:
+        typeof r.activePath === "string" && r.activePath !== "" ? r.activePath : null,
+    };
   } catch {
-    // fall through to empty
+    return { ...EMPTY_SESSION };
   }
-  return [];
 }

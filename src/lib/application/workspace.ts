@@ -21,7 +21,7 @@ import {
 } from "../domain/ai";
 import type { AiPort } from "../ports/ai";
 import { LspManager, type LspDiagnostic, type LspCompletionItem } from "./lsp.svelte";
-import { serializeSession, parseSession } from "../config/session";
+import { serializeSession, parseSession, type SessionData } from "../config/session";
 import { appConfigDir, join } from "@tauri-apps/api/path";
 import { isDirty, type Buffer } from "../domain/buffer";
 import { dirname, normalize, pathFromFileUri, relativeTo } from "../domain/paths";
@@ -249,6 +249,7 @@ export class Workspace {
       this.layout.setView(leaf.id, "editor");
     }
     this.#lspOpen(buf);
+    this.#schedulePersist();
   }
 
   /** Read a window of raw bytes (used by the hex view). */
@@ -350,6 +351,7 @@ export class Workspace {
     await this.explorer.openFolder(path);
     await this.vcs.refresh(path);
     void this.#watcher?.watch(path).catch(() => {});
+    this.#schedulePersist();
   }
 
   async saveActive(): Promise<void> {
@@ -425,7 +427,7 @@ export class Workspace {
     if (buf) this.layout.requestReveal(buf.id, line);
   }
 
-  // --- Hot exit: persist & restore never-saved (untitled) buffers ----------
+  // --- Session restore: folder, open files and unsaved buffers -------------
 
   #schedulePersist(): void {
     if (this.#persistTimer) clearTimeout(this.#persistTimer);
@@ -434,28 +436,62 @@ export class Workspace {
 
   async #persistSession(): Promise<void> {
     try {
-      const items = this.buffers.items
-        .filter((b) => b.path === null)
-        .map((b) => ({ name: b.name, content: b.content }));
-      await this.#fs.writeTextFile(await this.#sessionPath(), serializeSession(items));
+      const activeId = this.layout.activeTabId;
+      const active = activeId ? this.buffers.get(activeId) : null;
+      const data: SessionData = {
+        untitled: this.buffers.items
+          .filter((b) => b.path === null)
+          .map((b) => ({ name: b.name, content: b.content })),
+        folder: this.explorer.rootPath,
+        files: this.buffers.items.flatMap((b) => (b.path ? [b.path] : [])),
+        activePath: active?.path ?? null,
+      };
+      await this.#fs.writeTextFile(await this.#sessionPath(), serializeSession(data));
     } catch {
-      // best effort — losing the hot-exit cache is non-fatal
+      // best effort — losing the session cache is non-fatal
     }
   }
 
-  /** Restore untitled buffers from the last session. Returns the count. */
+  /** Restore the previous session (folder, files, untitled). Returns the count. */
   async restoreSession(): Promise<number> {
     try {
       const raw = await this.#fs.readTextFile(await this.#sessionPath());
-      const items = parseSession(raw);
-      for (const item of items) {
-        const buf = this.buffers.createUntitled(item.content, item.name);
-        this.layout.openInActiveLeaf(buf.id);
-      }
-      return items.length;
+      return await this.restoreFromData(parseSession(raw));
     } catch {
       return 0;
     }
+  }
+
+  /** Apply parsed session data; missing files are skipped silently. */
+  async restoreFromData(data: SessionData): Promise<number> {
+    let restored = 0;
+    if (data.folder) {
+      try {
+        await this.explorer.openFolder(data.folder);
+        await this.vcs.refresh(data.folder);
+        void this.#watcher?.watch(data.folder).catch(() => {});
+      } catch {
+        // folder gone — continue with the rest
+      }
+    }
+    for (const path of data.files) {
+      try {
+        await this.openPath(path);
+        restored += 1;
+      } catch {
+        // file gone — skip
+      }
+    }
+    for (const item of data.untitled) {
+      const buf = this.buffers.createUntitled(item.content, item.name);
+      this.layout.openInActiveLeaf(buf.id);
+      restored += 1;
+    }
+    if (data.activePath) {
+      const buf = this.buffers.items.find((b) => b.path === data.activePath);
+      if (buf) this.layout.setActiveTab(this.layout.activeLeafId, buf.id);
+    }
+    return restored;
   }
 
   async #sessionPath(): Promise<string> {
