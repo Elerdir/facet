@@ -134,4 +134,8 @@ export class VcsStore {
   stagedDiff(): Promise<string> {
     return this.repo ? this.#port.stagedDiff(this.repo) : Promise.resolve("");
   }
+
+  remoteUrl(): Promise<string | null> {
+    return this.repo ? this.#port.remoteUrl(this.repo) : Promise.resolve(null);
+  }
 }

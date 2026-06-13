@@ -32,6 +32,8 @@ import type { SearchMatch } from "../domain/search";
 import type { LspTransport } from "../ports/lsp";
 import type { WatcherPort } from "../ports/watcher";
 import type { SecretsPort } from "../ports/secrets";
+import type { GithubPort } from "../ports/github";
+import { parseGithubRemote, type PullRequestInfo } from "../domain/github";
 import type { DialogPort } from "../ports/dialog";
 import type { HistoryPort } from "../ports/history";
 import type { DiffPort } from "../ports/diff";
@@ -64,6 +66,7 @@ export class Workspace {
   #fs: FileSystemPort;
   #dialog: DialogPort;
   #watcher: WatcherPort | null;
+  #github: GithubPort | null = null;
   #persistTimer: ReturnType<typeof setTimeout> | null = null;
   #fsChangeTimer: ReturnType<typeof setTimeout> | null = null;
   #pendingFsChanges: string[] = [];
@@ -79,6 +82,7 @@ export class Workspace {
     ai: AiPort,
     watcher: WatcherPort | null = null,
     secrets: SecretsPort | null = null,
+    github: GithubPort | null = null,
   ) {
     this.buffers = new BufferStore(fs, dialog);
     this.layout = new LayoutStore();
@@ -95,6 +99,7 @@ export class Workspace {
     this.#fs = fs;
     this.#dialog = dialog;
     this.#watcher = watcher;
+    this.#github = github;
     // Debounce watcher bursts (a single save often yields several events).
     watcher?.onChange((paths) => {
       this.#pendingFsChanges.push(...paths);
@@ -289,6 +294,15 @@ export class Workspace {
     await this.explorer.openFolder(target);
     await this.vcs.refresh(target);
     return target;
+  }
+
+  /** Open pull requests of the repo's GitHub remote (token optional). */
+  async listPullRequests(): Promise<PullRequestInfo[]> {
+    if (!this.#github) throw new Error("GitHub API není k dispozici.");
+    const ref = parseGithubRemote(await this.vcs.remoteUrl());
+    if (!ref) throw new Error("Remote origin nemíří na GitHub.");
+    const token = this.settings.current.githubToken.trim();
+    return this.#github.listOpenPullRequests(ref, token !== "" ? token : null);
   }
 
   /** Show a file's git diff against HEAD in the comparison view. */

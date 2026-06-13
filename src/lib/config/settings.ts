@@ -11,6 +11,7 @@ export interface Settings {
   aiModel: string;
   editorFontFamily: string;
   editorFontSize: number;
+  editorMinimap: boolean;
   fileTemplates: CustomTemplate[];
   githubToken: string;
   gitlabToken: string;
@@ -39,6 +40,7 @@ export const DEFAULT_SETTINGS: Settings = {
   aiModel: DEFAULT_AI_MODEL,
   editorFontFamily: '"Cascadia Code", "JetBrains Mono", Consolas, monospace',
   editorFontSize: 13,
+  editorMinimap: true,
   fileTemplates: [],
   githubToken: "",
   gitlabToken: "",
@@ -87,6 +89,10 @@ export function parseSettings(raw: string): Settings {
         ? r.editorFontFamily
         : DEFAULT_SETTINGS.editorFontFamily,
     editorFontSize: clampNumber(r.editorFontSize, 8, 32, DEFAULT_SETTINGS.editorFontSize),
+    editorMinimap:
+      typeof r.editorMinimap === "boolean"
+        ? r.editorMinimap
+        : DEFAULT_SETTINGS.editorMinimap,
     fileTemplates: Array.isArray(r.fileTemplates)
       ? r.fileTemplates
           .filter((t): t is Record<string, unknown> => typeof t === "object" && t !== null)

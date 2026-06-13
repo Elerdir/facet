@@ -1,109 +1,69 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { Terminal } from "@xterm/xterm";
-  import { FitAddon } from "@xterm/addon-fit";
-  import "@xterm/xterm/css/xterm.css";
-  import { X, RotateCcw } from "@lucide/svelte";
-  import { TauriTerminal } from "../../infrastructure/tauriTerminal";
-  import { getWorkspace } from "../../application/context";
+  import { X, Plus } from "@lucide/svelte";
+  import TerminalView from "./TerminalView.svelte";
 
   let { onClose }: { onClose: () => void } = $props();
 
-  const ws = getWorkspace();
-  const backend = new TauriTerminal();
-
-  let host: HTMLDivElement;
-  let shell = $state<"powershell" | "cmd">("powershell");
-  let term: Terminal | null = null;
-  let fit: FitAddon | null = null;
-  let sessionId = "";
-  let unsubs: Array<() => void> = [];
-  let resizeObserver: ResizeObserver | null = null;
-
-  async function startSession() {
-    sessionId = `term-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    term = new Terminal({
-      fontSize: 13,
-      fontFamily: '"Cascadia Code", Consolas, monospace',
-      cursorBlink: true,
-      theme: { background: "#1e1e22" },
-    });
-    fit = new FitAddon();
-    term.loadAddon(fit);
-    term.open(host);
-    fit.fit();
-
-    const id = sessionId;
-    term.onData((data) => void backend.write(id, data));
-    unsubs.push(
-      backend.onData((tid, bytes) => {
-        if (tid === id) term?.write(bytes);
-      }),
-      backend.onExit((tid) => {
-        if (tid === id) term?.write("\r\n\x1b[90m[proces skončil — ⟳ spustí nový]\x1b[0m\r\n");
-      }),
-    );
-
-    try {
-      await backend.start(id, shell, ws.explorer.rootPath, term.cols, term.rows);
-      term.focus();
-    } catch (e) {
-      term.write(`\r\n\x1b[31mNelze spustit shell: ${e}\x1b[0m\r\n`);
-    }
+  interface Session {
+    id: string;
+    shell: "powershell" | "cmd";
+    label: string;
   }
 
-  function teardown() {
-    if (sessionId) void backend.kill(sessionId);
-    for (const un of unsubs) un();
-    unsubs = [];
-    term?.dispose();
-    term = null;
-    fit = null;
+  let sessions = $state<Session[]>([]);
+  let activeId = $state("");
+  let newShell = $state<"powershell" | "cmd">("powershell");
+  let counter = 1;
+
+  function addSession() {
+    const id = `term-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const label = `${newShell === "cmd" ? "cmd" : "PowerShell"} ${counter}`;
+    counter += 1;
+    sessions.push({ id, shell: newShell, label });
+    activeId = id;
   }
 
-  async function restart() {
-    teardown();
-    await startSession();
+  function closeSession(id: string) {
+    sessions = sessions.filter((s) => s.id !== id);
+    if (activeId === id) activeId = sessions.at(-1)?.id ?? "";
+    if (sessions.length === 0) onClose();
   }
 
-  onMount(() => {
-    void startSession();
-    resizeObserver = new ResizeObserver(() => {
-      if (fit && term) {
-        fit.fit();
-        void backend.resize(sessionId, term.cols, term.rows);
-      }
-    });
-    resizeObserver.observe(host);
-    return () => {
-      resizeObserver?.disconnect();
-      teardown();
-    };
-  });
+  onMount(() => addSession());
 </script>
 
 <div class="terminal">
   <div class="bar">
-    <span class="title">Terminál</span>
+    {#each sessions as s (s.id)}
+      <div class="ttab" class:active={s.id === activeId}>
+        <button class="ttab-label" onclick={() => (activeId = s.id)}>{s.label}</button>
+        <button class="ttab-x" title="Zavřít terminál" onclick={() => closeSession(s.id)}>
+          <X size={11} />
+        </button>
+      </div>
+    {/each}
     <select
-      value={shell}
-      onchange={(e) => {
-        shell = e.currentTarget.value === "cmd" ? "cmd" : "powershell";
-        void restart();
-      }}
+      value={newShell}
+      title="Shell pro nový terminál"
+      onchange={(e) => (newShell = e.currentTarget.value === "cmd" ? "cmd" : "powershell")}
     >
       <option value="powershell">PowerShell</option>
-      <option value="cmd">Příkazový řádek (cmd)</option>
+      <option value="cmd">cmd</option>
     </select>
-    <button class="icon" title="Restartovat shell" onclick={() => void restart()}>
-      <RotateCcw size={14} />
+    <button class="icon" title="Nový terminál" onclick={addSession}>
+      <Plus size={14} />
     </button>
     <span class="grow"></span>
-    <button class="icon" title="Zavřít terminál (Ctrl+`)" onclick={onClose}>
+    <button class="icon" title="Zavřít panel (Ctrl+`)" onclick={onClose}>
       <X size={14} />
     </button>
   </div>
-  <div class="host" bind:this={host}></div>
+  {#each sessions as s (s.id)}
+    <div class="view" style:display={s.id === activeId ? "block" : "none"}>
+      <TerminalView id={s.id} shell={s.shell} active={s.id === activeId} />
+    </div>
+  {/each}
 </div>
 
 <style>
@@ -118,19 +78,55 @@
   .bar {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     height: 30px;
     padding: 0 8px;
     border-bottom: 1px solid var(--border);
     background: var(--bg-elev);
     flex: 0 0 auto;
+    overflow-x: auto;
   }
 
-  .title {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+  .ttab {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    border-radius: 5px;
+    background: transparent;
     color: var(--fg-dim);
+  }
+
+  .ttab.active {
+    background: var(--bg);
+    color: var(--fg);
+    box-shadow: inset 0 -2px 0 var(--accent);
+  }
+
+  .ttab-label {
+    border: none;
+    background: transparent;
+    color: inherit;
+    padding: 4px 2px 4px 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .ttab-x {
+    display: inline-flex;
+    align-items: center;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--fg-dim);
+    padding: 3px;
+    cursor: pointer;
+  }
+
+  .ttab-x:hover {
+    background: var(--border);
+    color: var(--fg);
   }
 
   select {
@@ -158,6 +154,7 @@
     background: transparent;
     color: var(--fg-dim);
     cursor: pointer;
+    flex: 0 0 auto;
   }
 
   .icon:hover {
@@ -165,13 +162,8 @@
     color: var(--fg);
   }
 
-  .host {
+  .view {
     flex: 1;
     min-height: 0;
-    padding: 4px 6px 0;
-  }
-
-  .host :global(.xterm) {
-    height: 100%;
   }
 </style>

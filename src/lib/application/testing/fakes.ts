@@ -19,6 +19,8 @@ import type { LspTransport } from "../../ports/lsp";
 import type { WatcherPort } from "../../ports/watcher";
 import type { AiPort, AiRequest } from "../../ports/ai";
 import type { SecretsPort } from "../../ports/secrets";
+import type { GithubPort } from "../../ports/github";
+import type { GithubRepoRef, PullRequestInfo } from "../../domain/github";
 import { encodeMessage, MessageBuffer, type JsonRpcMessage } from "../../lsp/protocol";
 
 /** In-memory FileSystemPort for unit tests. */
@@ -303,6 +305,20 @@ export class FakeWatcher implements WatcherPort {
   /** Simulate an external change. */
   trigger(paths: string[]): void {
     this.#handler?.(paths);
+  }
+}
+
+/** Scriptable GithubPort for unit tests. */
+export class FakeGithub implements GithubPort {
+  pulls: PullRequestInfo[] = [];
+  calls: { ref: GithubRepoRef; token: string | null }[] = [];
+
+  async listOpenPullRequests(
+    ref: GithubRepoRef,
+    token: string | null,
+  ): Promise<PullRequestInfo[]> {
+    this.calls.push({ ref, token });
+    return this.pulls;
   }
 }
 

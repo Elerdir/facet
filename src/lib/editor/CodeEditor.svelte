@@ -5,6 +5,7 @@
   import { indentWithTab } from "@codemirror/commands";
   import { oneDark } from "@codemirror/theme-one-dark";
   import { lintGutter } from "@codemirror/lint";
+  import { showMinimap } from "@replit/codemirror-minimap";
   import { resolveHighlighting, loadHighlightExtension } from "./highlighting";
   import { lspCompletion, lspHoverTooltip, lspLinter } from "./lspExtensions";
   import { LARGE_TEXT_BYTES } from "../domain/fileInfo";
@@ -22,6 +23,7 @@
     theme = "dark",
     fontFamily = '"Cascadia Code", "JetBrains Mono", Consolas, monospace',
     fontSize = 13,
+    minimap = false,
     formatRequest = null,
     onFormatConsumed,
     revealLine,
@@ -40,6 +42,7 @@
     theme?: "dark" | "light";
     fontFamily?: string;
     fontSize?: number;
+    minimap?: boolean;
     formatRequest?: { kind: TextFormatKind; seq: number } | null;
     onFormatConsumed?: () => void;
     revealLine?: number;
@@ -145,6 +148,16 @@
   const themeComp = new Compartment();
   const blameComp = new Compartment();
   const lintComp = new Compartment();
+  const minimapComp = new Compartment();
+
+  function minimapExtension() {
+    if (!minimap) return [];
+    return showMinimap.compute([], () => ({
+      create: () => ({ dom: document.createElement("div") }),
+      displayText: "blocks" as const,
+      showOverlay: "always" as const,
+    }));
+  }
   let loadGen = 0; // guards against stale async highlight loads
 
   function makeState(buf: Buffer): EditorState {
@@ -156,6 +169,7 @@
         themeComp.of(theme === "dark" ? oneDark : []),
         highlight.of([]),
         blameComp.of(blameExtension()),
+        minimapComp.of(minimapExtension()),
         ...(lspDiagnostics !== undefined
           ? [lintComp.of(lspLinter(() => lspDiagnostics ?? [])), lintGutter()]
           : []),
@@ -254,6 +268,14 @@
       view.dispatch({
         effects: themeComp.reconfigure(t === "dark" ? oneDark : []),
       });
+    }
+  });
+
+  // Toggle the minimap when the setting changes.
+  $effect(() => {
+    void minimap;
+    if (view) {
+      view.dispatch({ effects: minimapComp.reconfigure(minimapExtension()) });
     }
   });
 
