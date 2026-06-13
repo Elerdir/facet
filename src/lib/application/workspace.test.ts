@@ -225,6 +225,46 @@ describe("Workspace open flow", () => {
     expect(vcs.inits).toEqual(["/proj"]);
   });
 
+  it("restores the previous session: folder, files, untitled and active tab", async () => {
+    const { fs, ws } = setup();
+    fs.files.set("/proj/a.ts", "const a = 1");
+    fs.files.set("/proj/b.md", "# b");
+    fs.dirs.set("/proj", []);
+
+    const restored = await ws.restoreFromData({
+      untitled: [{ name: "bez názvu 1", content: "poznámka" }],
+      folder: "/proj",
+      files: ["/proj/a.ts", "/proj/b.md"],
+      activePath: "/proj/a.ts",
+    });
+
+    expect(restored).toBe(3);
+    expect(ws.explorer.rootPath).toBe("/proj");
+    expect(ws.buffers.items.map((b) => b.name)).toEqual([
+      "a.ts",
+      "b.md",
+      "bez názvu 1",
+    ]);
+    const active = ws.buffers.get(ws.layout.activeTabId!)!;
+    expect(active.path).toBe("/proj/a.ts");
+  });
+
+  it("skips session files that no longer exist", async () => {
+    const { fs, ws } = setup();
+    fs.files.set("/proj/keep.ts", "x");
+
+    const restored = await ws.restoreFromData({
+      untitled: [],
+      folder: null,
+      files: ["/proj/keep.ts", "/proj/deleted.ts"],
+      activePath: null,
+    });
+
+    expect(restored).toBe(1);
+    expect(ws.buffers.items).toHaveLength(1);
+    expect(ws.buffers.items[0].name).toBe("keep.ts");
+  });
+
   it("creates a new file from a template with extension and content", () => {
     const { ws } = setup();
     ws.newFileFromTemplate({
