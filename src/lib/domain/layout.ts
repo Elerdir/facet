@@ -103,6 +103,15 @@ export function setView(l: PaneLeaf, view: ViewKind): PaneLeaf {
   return l.view === view ? l : { ...l, view };
 }
 
+/** Insert a tab at an index (end when omitted) and activate it. */
+export function insertTab(l: PaneLeaf, tabId: string, index?: number): PaneLeaf {
+  if (l.tabs.includes(tabId)) return setActiveTab(l, tabId);
+  const tabs = [...l.tabs];
+  const at = index === undefined ? tabs.length : Math.max(0, Math.min(index, tabs.length));
+  tabs.splice(at, 0, tabId);
+  return { ...l, tabs, activeTab: tabId };
+}
+
 // ---------------------------------------------------------------------------
 // Tree-level (pure) operations
 // ---------------------------------------------------------------------------

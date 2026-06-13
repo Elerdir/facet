@@ -161,6 +161,8 @@ export interface CustomTemplate {
   name: string;
   extension: string;
   content: string;
+  /** Section/language the template belongs to (e.g. "Java" or a new one). */
+  language?: string;
 }
 
 /** Built-ins plus user-defined templates (from settings). */
@@ -169,7 +171,7 @@ export function allTemplates(custom: CustomTemplate[]): NewFileTemplate[] {
     ...BUILTIN_TEMPLATES,
     ...custom.map((c, i) => ({
       id: `custom-${i}`,
-      language: "Vlastní",
+      language: c.language?.trim() || "Vlastní",
       name: c.name,
       extension: c.extension,
       content: c.content,

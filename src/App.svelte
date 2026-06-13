@@ -16,7 +16,7 @@
   import AiChatPanel from "./lib/components/ai/AiChatPanel.svelte";
   import { allTemplates } from "./lib/domain/newFileTemplates";
   import { ENCODINGS } from "./lib/domain/encodings";
-  import { Files, GitBranch, Search } from "@lucide/svelte";
+  import { Files, GitBranch, Search, Bot, History } from "@lucide/svelte";
   import { loadUserTemplates } from "./lib/config/loadTemplates";
   import { Autosave } from "./lib/application/autosave";
   import { coreCommands } from "./lib/application/commands";
@@ -205,8 +205,6 @@
 <div class="app">
   <Toolbar
     onToggleSidebar={() => (sidebarOpen = !sidebarOpen)}
-    onToggleHistory={() => (historyOpen = !historyOpen)}
-    onToggleAi={() => (aiOpen = !aiOpen)}
     onToggleTerminal={() => (terminalOpen = !terminalOpen)}
     onNewFile={() => (palette = "newfile")}
     onOpenSettings={() => (settingsOpen = true)}
@@ -276,6 +274,24 @@
         <AiChatPanel />
       </aside>
     {/if}
+    <div class="rail">
+      <button
+        class="rail-btn"
+        class:active={aiOpen}
+        title="AI chat (Ctrl+I)"
+        onclick={() => (aiOpen = !aiOpen)}
+      >
+        <Bot size={18} />
+      </button>
+      <button
+        class="rail-btn"
+        class:active={historyOpen}
+        title="Historie změn (Ctrl+H)"
+        onclick={() => (historyOpen = !historyOpen)}
+      >
+        <History size={18} />
+      </button>
+    </div>
   </div>
   {#if terminalOpen}
     <div class="terminal-wrap">
@@ -437,5 +453,39 @@
     flex: 0 0 260px;
     border-top: 1px solid var(--border);
     overflow: hidden;
+  }
+
+  .rail {
+    flex: 0 0 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding-top: 8px;
+    background: var(--bg-elev);
+    border-left: 1px solid var(--border);
+  }
+
+  .rail-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--fg-dim);
+    cursor: pointer;
+  }
+
+  .rail-btn:hover {
+    background: var(--bg-elev-2);
+    color: var(--fg);
+  }
+
+  .rail-btn.active {
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
+    color: var(--fg);
   }
 </style>

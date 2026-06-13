@@ -90,6 +90,31 @@ export class LayoutStore {
     return L.tabRefCount(this.root, tabId);
   }
 
+  /** Move a tab between panes (or reorder within one); drag & drop. */
+  moveTab(fromLeafId: string, tabId: string, toLeafId: string, toIndex?: number): void {
+    const source = L.findLeaf(this.root, fromLeafId);
+    if (!source || !source.tabs.includes(tabId)) return;
+
+    let index = toIndex;
+    if (fromLeafId === toLeafId && index !== undefined) {
+      // Removing the tab first shifts later indices left by one.
+      const original = source.tabs.indexOf(tabId);
+      if (index > original) index -= 1;
+    }
+
+    let root = L.updateLeaf(this.root, fromLeafId, (l) => L.removeTab(l, tabId));
+    root = L.updateLeaf(root, toLeafId, (l) => L.insertTab(l, tabId, index));
+
+    // Collapse the source pane when the move emptied it.
+    const src = L.findLeaf(root, fromLeafId);
+    if (src && src.tabs.length === 0 && L.allLeaves(root).length > 1) {
+      root = L.removeLeaf(root, fromLeafId)!;
+    }
+
+    this.root = root;
+    this.activeLeafId = L.findLeaf(root, toLeafId) ? toLeafId : L.firstLeaf(root).id;
+  }
+
   requestReveal(bufferId: string, line: number): void {
     this.revealTarget = { bufferId, line };
   }

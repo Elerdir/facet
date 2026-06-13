@@ -89,10 +89,7 @@ export function parseSettings(raw: string): Settings {
     editorFontSize: clampNumber(r.editorFontSize, 8, 32, DEFAULT_SETTINGS.editorFontSize),
     fileTemplates: Array.isArray(r.fileTemplates)
       ? r.fileTemplates
-          .filter(
-            (t): t is { name: unknown; extension: unknown; content: unknown } =>
-              typeof t === "object" && t !== null,
-          )
+          .filter((t): t is Record<string, unknown> => typeof t === "object" && t !== null)
           .filter(
             (t) =>
               typeof t.name === "string" &&
@@ -103,6 +100,9 @@ export function parseSettings(raw: string): Settings {
             name: t.name as string,
             extension: (t.extension as string).replace(/^\./, "").toLowerCase(),
             content: t.content as string,
+            ...(typeof t.language === "string" && t.language.trim() !== ""
+              ? { language: t.language.trim() }
+              : {}),
           }))
       : [],
     githubToken: typeof r.githubToken === "string" ? r.githubToken : "",

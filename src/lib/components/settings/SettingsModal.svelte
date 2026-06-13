@@ -95,6 +95,7 @@
   let selectedTemplate = $state<NewFileTemplate | null>(null);
   let newName = $state("");
   let newExt = $state("");
+  let newLanguage = $state("");
   let newContent = $state("");
 
   function addTemplate() {
@@ -102,11 +103,17 @@
     void ws.settings.update({
       fileTemplates: [
         ...s.fileTemplates,
-        { name: newName.trim(), extension: newExt.trim().replace(/^\./, ""), content: newContent },
+        {
+          name: newName.trim(),
+          extension: newExt.trim().replace(/^\./, ""),
+          content: newContent,
+          ...(newLanguage.trim() ? { language: newLanguage.trim() } : {}),
+        },
       ],
     });
     newName = "";
     newExt = "";
+    newLanguage = "";
     newContent = "";
   }
 
@@ -293,6 +300,17 @@
         <div class="tpl-form">
           <input type="text" placeholder="Název (např. Vue komponenta)" bind:value={newName} />
           <input type="text" class="ext-input" placeholder="přípona (vue)" bind:value={newExt} />
+          <input
+            type="text"
+            list="tpl-sections"
+            placeholder="Sekce — vyber nebo napiš novou (např. Java, Ansible…)"
+            bind:value={newLanguage}
+          />
+          <datalist id="tpl-sections">
+            {#each templateLanguages(templates) as lang (lang)}
+              <option value={lang}></option>
+            {/each}
+          </datalist>
           <textarea rows="4" placeholder="Výchozí obsah souboru…" bind:value={newContent}></textarea>
           <button class="btn primary" disabled={!newName.trim() || !newExt.trim()} onclick={addTemplate}>
             Přidat šablonu
@@ -523,6 +541,13 @@
     margin-top: 6px;
   }
 
+  /* První sekce hned pod záložkami — bez druhé oddělovací čáry. */
+  .body > .section:first-child {
+    border-top: none;
+    margin-top: 0;
+    padding-top: 8px;
+  }
+
   .note {
     padding: 4px 16px;
     color: var(--fg-dim);
@@ -648,6 +673,10 @@
     grid-template-columns: 1fr 130px;
     gap: 8px;
     padding: 8px 16px 0;
+  }
+
+  .tpl-form input[list] {
+    grid-column: 1 / -1;
   }
 
   .tpl-form input,

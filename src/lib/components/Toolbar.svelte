@@ -8,27 +8,21 @@
     Columns2,
     Rows2,
     Eye,
-    History,
     GitCompare,
     Sparkles,
     Settings,
     Fingerprint,
-    Bot,
     SquareTerminal,
   } from "@lucide/svelte";
   import { getWorkspace } from "../application/context";
 
   let {
     onToggleSidebar,
-    onToggleHistory,
-    onToggleAi,
     onToggleTerminal,
     onNewFile,
     onOpenSettings,
   }: {
     onToggleSidebar: () => void;
-    onToggleHistory: () => void;
-    onToggleAi: () => void;
     onToggleTerminal: () => void;
     onNewFile: () => void;
     onOpenSettings: () => void;
@@ -76,12 +70,6 @@
   </button>
   <button class="icon" title="Blame – autor řádků" onclick={() => ws.toggleBlame()}>
     <Fingerprint size={16} />
-  </button>
-  <button class="icon" title="Historie změn (Ctrl+H)" onclick={onToggleHistory}>
-    <History size={16} />
-  </button>
-  <button class="icon" title="AI chat (Ctrl+I)" onclick={onToggleAi}>
-    <Bot size={16} />
   </button>
   <button class="icon" title="Terminál (Ctrl+`)" onclick={onToggleTerminal}>
     <SquareTerminal size={16} />
