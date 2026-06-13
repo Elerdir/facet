@@ -10,6 +10,7 @@ import {
   removeTab,
   setActiveTab,
   setView,
+  insertTab,
   splitLeaf,
   removeLeaf,
   setSplitSizes,
@@ -70,6 +71,23 @@ describe("layout leaf tab operations", () => {
   it("setView returns the same leaf when the view is unchanged", () => {
     const base = leaf("p1");
     expect(setView(base, "editor")).toBe(base);
+  });
+
+  it("insertTab places the tab at the index and activates it", () => {
+    const l = insertTab(leaf("p1", ["a", "b"], "a"), "x", 1);
+    expect(l.tabs).toEqual(["a", "x", "b"]);
+    expect(l.activeTab).toBe("x");
+  });
+
+  it("insertTab appends without an index and clamps out-of-range", () => {
+    expect(insertTab(leaf("p1", ["a"], "a"), "x").tabs).toEqual(["a", "x"]);
+    expect(insertTab(leaf("p1", ["a"], "a"), "x", 99).tabs).toEqual(["a", "x"]);
+  });
+
+  it("insertTab only activates an already present tab", () => {
+    const l = insertTab(leaf("p1", ["a", "b"], "b"), "a", 0);
+    expect(l.tabs).toEqual(["a", "b"]);
+    expect(l.activeTab).toBe("a");
   });
 });
 

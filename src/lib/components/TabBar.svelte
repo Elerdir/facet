@@ -8,8 +8,26 @@
   const ws = getWorkspace();
 </script>
 
-<div class="tabbar">
-  {#each leaf.tabs as tabId (tabId)}
+<div
+  class="tabbar"
+  role="tablist"
+  tabindex="-1"
+  ondragover={(e) => {
+    if (e.dataTransfer?.types.includes("application/x-facet-tab")) e.preventDefault();
+  }}
+  ondrop={(e) => {
+    const raw = e.dataTransfer?.getData("application/x-facet-tab");
+    if (!raw) return;
+    e.preventDefault();
+    try {
+      const { tabId, fromLeafId } = JSON.parse(raw) as { tabId: string; fromLeafId: string };
+      ws.layout.moveTab(fromLeafId, tabId, leaf.id); // na konec
+    } catch {
+      // cizí drop — ignorovat
+    }
+  }}
+>
+  {#each leaf.tabs as tabId, tabIndex (tabId)}
     {@const buf = ws.buffers.get(tabId)}
     {#if buf}
       <div
@@ -18,6 +36,28 @@
         role="button"
         tabindex="0"
         title={buf.path ?? buf.name}
+        draggable="true"
+        ondragstart={(e) => {
+          e.dataTransfer?.setData(
+            "application/x-facet-tab",
+            JSON.stringify({ tabId, fromLeafId: leaf.id }),
+          );
+        }}
+        ondragover={(e) => {
+          if (e.dataTransfer?.types.includes("application/x-facet-tab")) e.preventDefault();
+        }}
+        ondrop={(e) => {
+          const raw = e.dataTransfer?.getData("application/x-facet-tab");
+          if (!raw) return;
+          e.preventDefault();
+          e.stopPropagation();
+          try {
+            const data = JSON.parse(raw) as { tabId: string; fromLeafId: string };
+            ws.layout.moveTab(data.fromLeafId, data.tabId, leaf.id, tabIndex);
+          } catch {
+            // cizí drop — ignorovat
+          }
+        }}
         onclick={() => ws.layout.setActiveTab(leaf.id, tabId)}
         onkeydown={(e) => e.key === "Enter" && ws.layout.setActiveTab(leaf.id, tabId)}
         onmousedown={(e) => {

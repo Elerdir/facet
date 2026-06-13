@@ -69,6 +69,35 @@ describe("LayoutStore", () => {
     expect(s.tabRefCount("a")).toBe(2);
   });
 
+  it("moves a tab to another pane and collapses the emptied source", () => {
+    const s = setup();
+    s.openInActiveLeaf("a");
+    const first = s.activeLeafId;
+    s.split(first, "row"); // nový panel sdílí "a"
+    const second = s.activeLeafId;
+    s.setActiveTab(first, "a");
+    s.openInActiveLeaf("b"); // "b" v prvním panelu
+
+    s.moveTab(first, "b", second);
+    expect(s.activeLeafId).toBe(second);
+    expect(s.activeLeaf.tabs).toEqual(["a", "b"]);
+    expect(s.activeTabId).toBe("b");
+  });
+
+  it("reorders tabs within a pane with correct index shifting", () => {
+    const s = setup();
+    s.openInActiveLeaf("a");
+    s.openInActiveLeaf("b");
+    s.openInActiveLeaf("c");
+    const id = s.activeLeafId;
+
+    s.moveTab(id, "a", id, 3); // "a" na konec
+    expect(s.activeLeaf.tabs).toEqual(["b", "c", "a"]);
+
+    s.moveTab(id, "a", id, 0); // a zpět na začátek
+    expect(s.activeLeaf.tabs).toEqual(["a", "b", "c"]);
+  });
+
   it("toggles a pane between editor and preview", () => {
     const s = setup();
     const id = s.activeLeafId;

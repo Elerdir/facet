@@ -27,12 +27,21 @@ describe("new-file templates", () => {
     for (const tpl of BUILTIN_TEMPLATES) expect(tpl.content.length).toBeGreaterThan(0);
   });
 
-  it("appends custom templates under the 'Vlastní' language", () => {
+  it("appends custom templates under the 'Vlastní' language by default", () => {
     const all = allTemplates([{ name: "Moje", extension: "foo", content: "x" }]);
     const last = all.at(-1)!;
     expect(last.language).toBe("Vlastní");
     expect(last.builtin).toBe(false);
     expect(templateLanguages(all)).toContain("Vlastní");
+  });
+
+  it("custom templates can declare their own section (existing or new)", () => {
+    const all = allTemplates([
+      { name: "Servlet", extension: "java", content: "x", language: "Java" },
+      { name: "Playbook", extension: "yml", content: "y", language: "Ansible" },
+    ]);
+    expect(all.find((t) => t.name === "Servlet")!.language).toBe("Java");
+    expect(templateLanguages(all)).toContain("Ansible");
   });
 
   it("lists languages uniquely in display order", () => {
