@@ -10,6 +10,7 @@ import {
   FakeLspTransport,
   FakeWatcher,
   FakeAi,
+  FakeGithub,
 } from "./testing/fakes";
 
 function setup() {
@@ -19,6 +20,7 @@ function setup() {
   const watcher = new FakeWatcher();
   const vcs = new FakeVcs();
   const ai = new FakeAi();
+  const github = new FakeGithub();
   const ws = new Workspace(
     fs,
     dialog,
@@ -29,8 +31,10 @@ function setup() {
     new FakeLspTransport(),
     ai,
     watcher,
+    null,
+    github,
   );
-  return { fs, dialog, history, watcher, vcs, ai, ws };
+  return { fs, dialog, history, watcher, vcs, ai, github, ws };
 }
 
 describe("Workspace open flow", () => {
@@ -223,6 +227,28 @@ describe("Workspace open flow", () => {
 
     await ws.initRepo();
     expect(vcs.inits).toEqual(["/proj"]);
+  });
+
+  it("lists GitHub pull requests of the origin remote with the saved token", async () => {
+    const { vcs, github, ws } = setup();
+    ws.settings.current = { ...ws.settings.current, githubToken: "ghp_tok" };
+    await ws.vcs.refresh("/repo");
+    vcs.remoteUrlResult = "https://github.com/Elerdir/facet.git";
+    github.pulls = [
+      { number: 7, title: "Fix", author: "Elerdir", url: "u", draft: false, headRef: "fix" },
+    ];
+
+    const prs = await ws.listPullRequests();
+    expect(prs).toHaveLength(1);
+    expect(github.calls[0].ref).toEqual({ owner: "Elerdir", repo: "facet" });
+    expect(github.calls[0].token).toBe("ghp_tok");
+  });
+
+  it("rejects PR listing when the remote is not GitHub", async () => {
+    const { vcs, ws } = setup();
+    await ws.vcs.refresh("/repo");
+    vcs.remoteUrlResult = "https://gitlab.com/u/r.git";
+    await expect(ws.listPullRequests()).rejects.toThrow("GitHub");
   });
 
   it("restores the previous session: folder, files, untitled and active tab", async () => {

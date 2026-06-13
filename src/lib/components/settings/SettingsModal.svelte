@@ -255,6 +255,15 @@
           />
         </label>
 
+        <label class="row">
+          <input
+            type="checkbox"
+            checked={s.editorMinimap}
+            onchange={(e) => ws.settings.update({ editorMinimap: e.currentTarget.checked })}
+          />
+          <span>Minimapa</span>
+        </label>
+
         <div class="note">
           Tučně / kurzíva / podtržení pro výběr najdeš v paletě příkazů
           (Ctrl+Shift+P → „Formát: …").

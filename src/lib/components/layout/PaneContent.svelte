@@ -54,6 +54,7 @@
         theme={ws.settings.current.theme}
         fontFamily={ws.settings.current.editorFontFamily}
         fontSize={ws.settings.current.editorFontSize}
+        minimap={ws.settings.current.editorMinimap}
         formatRequest={isActivePane ? ws.textFormat.request : null}
         onFormatConsumed={() => ws.textFormat.consume()}
         {revealLine}

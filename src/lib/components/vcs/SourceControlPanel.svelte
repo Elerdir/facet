@@ -9,9 +9,12 @@
     ArrowDown,
     ArrowUp,
     Sparkles,
+    GitPullRequest,
   } from "@lucide/svelte";
+  import { openUrl } from "@tauri-apps/plugin-opener";
   import { getWorkspace } from "../../application/context";
   import { statusBadge, type FileStatus, type SyncOp } from "../../domain/vcs";
+  import type { PullRequestInfo } from "../../domain/github";
 
   const ws = getWorkspace();
   let message = $state("");
@@ -83,6 +86,24 @@
       syncMsg = e instanceof Error ? e.message : String(e);
     } finally {
       suggesting = false;
+    }
+  }
+
+  let prs = $state<PullRequestInfo[] | null>(null);
+  let prsMsg = $state("");
+  let prsLoading = $state(false);
+
+  async function loadPrs() {
+    prsLoading = true;
+    prsMsg = "";
+    try {
+      prs = await ws.listPullRequests();
+      if (prs.length === 0) prsMsg = "Žádné otevřené pull requesty.";
+    } catch (e) {
+      prs = null;
+      prsMsg = e instanceof Error ? e.message : String(e);
+    } finally {
+      prsLoading = false;
     }
   }
 
@@ -229,6 +250,32 @@
       {@render group("Změny", ws.vcs.grouped.unstaged, false)}
       {#if ws.vcs.status.files.length === 0}
         <div class="empty">Žádné změny.</div>
+      {/if}
+
+      <div class="group-title prs-title">
+        Pull requesty (GitHub)
+        <button
+          class="mini"
+          title="Načíst otevřené pull requesty"
+          disabled={prsLoading}
+          onclick={loadPrs}
+        >
+          <GitPullRequest size={13} />
+        </button>
+      </div>
+      {#if prsLoading}
+        <div class="empty">Načítám…</div>
+      {:else if prs}
+        {#each prs as pr (pr.number)}
+          <button class="prrow" title={pr.url} onclick={() => void openUrl(pr.url)}>
+            <span class="prnum">#{pr.number}</span>
+            <span class="prtitle">{pr.draft ? "✎ " : ""}{pr.title}</span>
+            <span class="prmeta">{pr.author}</span>
+          </button>
+        {/each}
+      {/if}
+      {#if prsMsg}
+        <div class="empty">{prsMsg}</div>
       {/if}
 
       {#if ws.vcs.log.length > 0}
@@ -420,6 +467,49 @@
 
   .clone-msg.err {
     color: var(--danger);
+  }
+
+  .prs-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-right: 6px;
+  }
+
+  .prrow {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    width: 100%;
+    border: none;
+    background: transparent;
+    color: var(--fg);
+    padding: 3px 10px;
+    cursor: pointer;
+    text-align: left;
+    font-size: 12px;
+  }
+
+  .prrow:hover {
+    background: var(--bg-elev-2);
+  }
+
+  .prnum {
+    flex: 0 0 auto;
+    color: var(--accent);
+  }
+
+  .prtitle {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .prmeta {
+    flex: 0 0 auto;
+    color: var(--fg-dim);
+    font-size: 11px;
   }
 
   .icon {
