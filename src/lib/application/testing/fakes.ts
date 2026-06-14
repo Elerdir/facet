@@ -209,6 +209,8 @@ export class FakeVcs implements VcsPort {
   logResult: Commit[] = [];
   blameResult: BlameLine[] = [];
   stagedDiffResult = "";
+  unstagedDiffResult = "";
+  appliedPatches: string[] = [];
 
   async log(): Promise<Commit[]> {
     return this.logResult;
@@ -218,6 +220,12 @@ export class FakeVcs implements VcsPort {
   }
   async stagedDiff(): Promise<string> {
     return this.stagedDiffResult;
+  }
+  async unstagedDiff(): Promise<string> {
+    return this.unstagedDiffResult;
+  }
+  async applyCached(_repo: string, patch: string): Promise<void> {
+    this.appliedPatches.push(patch);
   }
 }
 

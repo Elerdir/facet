@@ -55,6 +55,8 @@ pub fn run() {
             vcs::git_blame,
             vcs::git_staged_diff,
             vcs::git_clone,
+            vcs::git_unstaged_diff,
+            vcs::git_apply_cached,
             vcs::git_init,
             vcs::git_remote_url,
             vcs::git_get_identity,

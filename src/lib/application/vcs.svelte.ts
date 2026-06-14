@@ -138,4 +138,14 @@ export class VcsStore {
   remoteUrl(): Promise<string | null> {
     return this.repo ? this.#port.remoteUrl(this.repo) : Promise.resolve(null);
   }
+
+  unstagedDiff(file: string): Promise<string> {
+    return this.repo ? this.#port.unstagedDiff(this.repo, file) : Promise.resolve("");
+  }
+
+  async applyCached(patch: string): Promise<void> {
+    if (!this.repo) return;
+    await this.#port.applyCached(this.repo, patch);
+    await this.refresh(this.repo);
+  }
 }

@@ -11,6 +11,13 @@ import { RenameUiStore } from "./renameUi.svelte";
 import { ReferencesUiStore } from "./referencesUi.svelte";
 import { AiChatStore } from "./ai.svelte";
 import { TextFormatStore } from "./textFormat.svelte";
+import { HunkStageUiStore } from "./hunkUi.svelte";
+import {
+  parseUnifiedDiff,
+  buildPatch,
+  type ParsedFileDiff,
+  type DiffHunk,
+} from "../domain/diffHunks";
 import type { NewFileTemplate } from "../domain/newFileTemplates";
 import { authHeaderFor, repoNameFromUrl } from "../domain/gitAuth";
 import {
@@ -62,6 +69,7 @@ export class Workspace {
   readonly lsp: LspManager;
   readonly ai: AiChatStore;
   readonly textFormat = new TextFormatStore();
+  readonly hunkUi = new HunkStageUiStore();
 
   #fs: FileSystemPort;
   #dialog: DialogPort;
@@ -319,6 +327,17 @@ export class Workspace {
     const selection = this.editorStatus.selectionText.trim();
     const code = selection !== "" ? selection : truncateContext(buf.content);
     void this.ai.send(buildSelectionPrompt(action, code, buf.name));
+  }
+
+  /** Parse the unstaged hunks of a file (repo-relative path) for hunk staging. */
+  async fileHunks(file: string): Promise<ParsedFileDiff | null> {
+    return parseUnifiedDiff(await this.vcs.unstagedDiff(file));
+  }
+
+  /** Stage just the chosen hunks of a file by applying them to the index. */
+  async stageHunks(fileHeader: string, hunks: DiffHunk[]): Promise<void> {
+    if (hunks.length === 0) return;
+    await this.vcs.applyCached(buildPatch(fileHeader, hunks));
   }
 
   /** Generate a commit message from the staged diff via the AI provider. */
