@@ -15,6 +15,7 @@
   import RenameModal from "./lib/components/rename/RenameModal.svelte";
   import HunkStageModal from "./lib/components/vcs/HunkStageModal.svelte";
   import CloneModal from "./lib/components/vcs/CloneModal.svelte";
+  import ContextMenu, { type MenuItem } from "./lib/components/ContextMenu.svelte";
   import AiChatPanel from "./lib/components/ai/AiChatPanel.svelte";
   import { allTemplates } from "./lib/domain/newFileTemplates";
   import { ENCODINGS } from "./lib/domain/encodings";
@@ -37,7 +38,52 @@
   let terminalOpen = $state(false);
   let settingsOpen = $state(false);
   let zen = $state(false);
+  let ctxMenu = $state<{ x: number; y: number } | null>(null);
   let palette = $state<"none" | "files" | "commands" | "newfile" | "encoding">("none");
+
+  function editorContextItems(): MenuItem[] {
+    const id = workspace.layout.activeTabId;
+    const buf = id ? workspace.buffers.get(id) : null;
+    const text = !!buf && !buf.binary;
+    return [
+      { label: "Formátovat", disabled: !text, action: () => workspace.formatActive("format") },
+      {
+        label: "Organizovat importy",
+        disabled: !text,
+        action: () => workspace.formatActive("organizeImports"),
+      },
+      { separator: true },
+      { header: true, label: "Převést kódování" },
+      ...ENCODINGS.map((enc) => ({
+        label: enc.label,
+        disabled: !text,
+        action: () => void workspace.convertEncoding(enc.id),
+      })),
+      { separator: true },
+      {
+        label: "AI: Vysvětli výběr",
+        disabled: !text,
+        action: () => {
+          aiOpen = true;
+          workspace.aiAsk("explain");
+        },
+      },
+      {
+        label: "AI: Refaktoruj výběr",
+        disabled: !text,
+        action: () => {
+          aiOpen = true;
+          workspace.aiAsk("refactor");
+        },
+      },
+    ];
+  }
+
+  function onEditorContextMenu(e: MouseEvent) {
+    if (compareActive) return; // leave the diff view's default behaviour
+    e.preventDefault();
+    ctxMenu = { x: e.clientX, y: e.clientY };
+  }
   let paletteFiles = $state<{ id: string; label: string }[]>([]);
   let resizing = false;
 
@@ -271,7 +317,7 @@
         onpointerup={endResize}
       ></div>
     {/if}
-    <main class="main">
+    <main class="main" oncontextmenu={onEditorContextMenu}>
       {#if compareActive}
         <CompareView />
       {:else}
@@ -379,6 +425,15 @@
 
 {#if workspace.cloneUi.open}
   <CloneModal />
+{/if}
+
+{#if ctxMenu}
+  <ContextMenu
+    x={ctxMenu.x}
+    y={ctxMenu.y}
+    items={editorContextItems()}
+    onClose={() => (ctxMenu = null)}
+  />
 {/if}
 
 {#if workspace.referencesUi.items}
