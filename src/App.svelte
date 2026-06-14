@@ -34,6 +34,7 @@
   let aiOpen = $state(false);
   let terminalOpen = $state(false);
   let settingsOpen = $state(false);
+  let zen = $state(false);
   let palette = $state<"none" | "files" | "commands" | "newfile" | "encoding">("none");
   let paletteFiles = $state<{ id: string; label: string }[]>([]);
   let resizing = false;
@@ -59,6 +60,7 @@
         sidebarView = "scm";
         sidebarOpen = true;
       },
+      toggleZen: () => (zen = !zen),
     }),
   );
 
@@ -93,10 +95,18 @@
   }
 
   function onKeydown(e: KeyboardEvent) {
+    if (e.key === "Escape" && zen) {
+      e.preventDefault();
+      zen = false;
+      return;
+    }
     if (!e.ctrlKey || e.altKey) return;
     const key = e.key.toLowerCase();
     if (e.shiftKey) {
-      if (key === "v") {
+      if (key === "z") {
+        e.preventDefault();
+        zen = !zen;
+      } else if (key === "v") {
         e.preventDefault();
         workspace.openPreviewBeside();
       } else if (key === "f") {
@@ -203,14 +213,16 @@
 </script>
 
 <div class="app">
-  <Toolbar
-    onToggleSidebar={() => (sidebarOpen = !sidebarOpen)}
-    onToggleTerminal={() => (terminalOpen = !terminalOpen)}
-    onNewFile={() => (palette = "newfile")}
-    onOpenSettings={() => (settingsOpen = true)}
-  />
+  {#if !zen}
+    <Toolbar
+      onToggleSidebar={() => (sidebarOpen = !sidebarOpen)}
+      onToggleTerminal={() => (terminalOpen = !terminalOpen)}
+      onNewFile={() => (palette = "newfile")}
+      onOpenSettings={() => (settingsOpen = true)}
+    />
+  {/if}
   <div class="body">
-    {#if sidebarOpen}
+    {#if sidebarOpen && !zen}
       <aside class="sidebar" style="width: {sidebarWidth}px">
         <div class="side-tabs">
           <button
@@ -274,26 +286,28 @@
         <AiChatPanel />
       </aside>
     {/if}
-    <div class="rail">
-      <button
-        class="rail-btn"
-        class:active={aiOpen}
-        title="AI chat (Ctrl+I)"
-        onclick={() => (aiOpen = !aiOpen)}
-      >
-        <Bot size={18} />
-      </button>
-      <button
-        class="rail-btn"
-        class:active={historyOpen}
-        title="Historie změn (Ctrl+H)"
-        onclick={() => (historyOpen = !historyOpen)}
-      >
-        <History size={18} />
-      </button>
-    </div>
+    {#if !zen}
+      <div class="rail">
+        <button
+          class="rail-btn"
+          class:active={aiOpen}
+          title="AI chat (Ctrl+I)"
+          onclick={() => (aiOpen = !aiOpen)}
+        >
+          <Bot size={18} />
+        </button>
+        <button
+          class="rail-btn"
+          class:active={historyOpen}
+          title="Historie změn (Ctrl+H)"
+          onclick={() => (historyOpen = !historyOpen)}
+        >
+          <History size={18} />
+        </button>
+      </div>
+    {/if}
   </div>
-  {#if terminalOpen}
+  {#if terminalOpen && !zen}
     <div class="terminal-wrap">
       <!-- xterm.js se načítá lazy až při prvním otevření terminálu -->
       {#await import("./lib/components/terminal/TerminalPanel.svelte") then { default: TerminalPanel }}
@@ -301,8 +315,16 @@
       {/await}
     </div>
   {/if}
-  <StatusBar onEncodingClick={() => (palette = "encoding")} />
+  {#if !zen}
+    <StatusBar onEncodingClick={() => (palette = "encoding")} />
+  {/if}
 </div>
+
+{#if zen}
+  <button class="zen-exit" title="Ukončit zen mód (Esc)" onclick={() => (zen = false)}>
+    Zen — Esc
+  </button>
+{/if}
 
 {#if palette === "files"}
   <Palette
@@ -486,6 +508,28 @@
 
   .rail-btn.active {
     background: color-mix(in srgb, var(--accent) 22%, transparent);
+    color: var(--fg);
+  }
+
+  .zen-exit {
+    position: fixed;
+    bottom: 12px;
+    right: 14px;
+    z-index: 60;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-elev);
+    color: var(--fg-dim);
+    padding: 4px 10px;
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    opacity: 0.4;
+    transition: opacity 0.15s;
+  }
+
+  .zen-exit:hover {
+    opacity: 1;
     color: var(--fg);
   }
 </style>

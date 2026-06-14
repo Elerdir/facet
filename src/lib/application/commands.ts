@@ -19,6 +19,7 @@ export interface UiActions {
   openNewFile: () => void;
   toggleTerminal: () => void;
   pickEncoding: () => void;
+  toggleZen: () => void;
 }
 
 /** The built-in command set surfaced in the command palette. */
@@ -43,6 +44,7 @@ export function coreCommands(ws: Workspace, ui: UiActions): Command[] {
     { id: "view.history", title: "Přepnout historii", hint: "Ctrl+H", run: ui.toggleHistory },
     { id: "tools.compare", title: "Porovnat soubory…", run: () => void ws.pickAndCompare() },
     { id: "view.terminal", title: "Terminál: Přepnout", hint: "Ctrl+`", run: ui.toggleTerminal },
+    { id: "view.zen", title: "Zobrazení: Zen mód", hint: "Ctrl+Shift+Z", run: ui.toggleZen },
     { id: "fmt.bold", title: "Formát: Tučně (výběr)", run: () => ws.textFormat.apply("bold") },
     { id: "fmt.italic", title: "Formát: Kurzíva (výběr)", run: () => ws.textFormat.apply("italic") },
     { id: "fmt.underline", title: "Formát: Podtržení (výběr)", run: () => ws.textFormat.apply("underline") },
