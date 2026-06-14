@@ -1,4 +1,9 @@
-import { buildSystemPrompt, type AiMessage, type FileContext } from "../domain/ai";
+import {
+  buildSystemPrompt,
+  type AiMessage,
+  type AiModelInfo,
+  type FileContext,
+} from "../domain/ai";
 import type { AiPort } from "../ports/ai";
 import type { SettingsStore } from "./settings.svelte";
 
@@ -25,6 +30,13 @@ export class AiChatStore {
 
   get configured(): boolean {
     return this.#settings.current.aiApiKey.trim() !== "";
+  }
+
+  /** Current selectable models for the configured key (live; no legacy). */
+  async listModels(): Promise<AiModelInfo[]> {
+    const key = this.#settings.current.aiApiKey.trim();
+    if (key === "") return [];
+    return this.#port.listModels(key);
   }
 
   async send(text: string, context: FileContext | null = null): Promise<void> {

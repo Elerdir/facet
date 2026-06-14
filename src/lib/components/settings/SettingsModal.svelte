@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { getWorkspace } from "../../application/context";
-  import { AI_MODELS } from "../../domain/ai";
+  import type { AiModelInfo } from "../../domain/ai";
   import {
     allTemplates,
     templateLanguages,
@@ -46,6 +46,33 @@
   }
 
   const fontIsPreset = $derived(EDITOR_FONTS.some((f) => f.value === s.editorFontFamily));
+
+  // --- AI modely (živě z API, jen po zadání tokenu) -------------------------
+  let aiModels = $state<AiModelInfo[]>([]);
+  let modelsLoading = $state(false);
+  let modelsError = $state<string | null>(null);
+  let loadedForKey = "";
+
+  $effect(() => {
+    const key = s.aiApiKey.trim();
+    if (tab !== "ai" || key === "" || key === loadedForKey) return;
+    loadedForKey = key;
+    modelsLoading = true;
+    modelsError = null;
+    void ws.ai
+      .listModels()
+      .then((m) => {
+        aiModels = m;
+        if (m.length > 0 && !m.some((x) => x.id === s.aiModel)) {
+          void ws.settings.update({ aiModel: m[0].id });
+        }
+      })
+      .catch((e) => {
+        modelsError = `Nelze načíst modely: ${e}`;
+        loadedForKey = ""; // dovolí zkusit znovu
+      })
+      .finally(() => (modelsLoading = false));
+  });
 
   // --- O aplikaci / aktualizace (UpdateHub) --------------------------------
   let version = $state("…");
@@ -392,22 +419,33 @@
           />
         </label>
 
-        <label class="row">
-          <span>Model</span>
-          <select
-            class="wide"
-            value={s.aiModel}
-            onchange={(e) => ws.settings.update({ aiModel: e.currentTarget.value })}
-          >
-            {#each AI_MODELS as m (m.id)}
-              <option value={m.id}>{m.label}</option>
-            {/each}
-          </select>
-        </label>
+        {#if s.aiApiKey.trim() === ""}
+          <div class="note">Zadej API klíč — pak se načtou dostupné modely.</div>
+        {:else}
+          <label class="row">
+            <span>Model</span>
+            {#if modelsLoading}
+              <span class="note" style="padding:0">Načítám modely…</span>
+            {:else if modelsError}
+              <span class="note err" style="padding:0">{modelsError}</span>
+            {:else}
+              <select
+                class="wide"
+                value={s.aiModel}
+                onchange={(e) => ws.settings.update({ aiModel: e.currentTarget.value })}
+              >
+                {#each aiModels as m (m.id)}
+                  <option value={m.id}>{m.label}</option>
+                {/each}
+              </select>
+            {/if}
+          </label>
+        {/if}
 
         <div class="note">
           API klíč se ukládá šifrovaně ve správci pověření systému — nikdy
-          v souboru nastavení.
+          v souboru nastavení. Nabídka modelů se načítá živě z API, vždy jen
+          nejnovější z každé řady.
         </div>
       {/if}
     </div>

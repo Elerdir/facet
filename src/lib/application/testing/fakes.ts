@@ -18,6 +18,7 @@ import type { SearchMatch } from "../../domain/search";
 import type { LspTransport } from "../../ports/lsp";
 import type { WatcherPort } from "../../ports/watcher";
 import type { AiPort, AiRequest } from "../../ports/ai";
+import type { AiModelInfo } from "../../domain/ai";
 import type { SecretsPort } from "../../ports/secrets";
 import type { GithubPort } from "../../ports/github";
 import type { GithubRepoRef, PullRequestInfo } from "../../domain/github";
@@ -280,6 +281,7 @@ export class FakeAi implements AiPort {
   deltas: string[] = ["odpověď"];
   failWith: string | null = null;
   requests: AiRequest[] = [];
+  models: AiModelInfo[] = [{ id: "claude-opus-4-8", label: "Claude Opus 4.8" }];
 
   async stream(
     request: AiRequest,
@@ -293,6 +295,10 @@ export class FakeAi implements AiPort {
       full += delta;
     }
     return full;
+  }
+
+  async listModels(): Promise<AiModelInfo[]> {
+    return this.models;
   }
 }
 
