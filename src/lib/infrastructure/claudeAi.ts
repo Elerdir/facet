@@ -1,5 +1,5 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import { modelSupportsAdaptive } from "../domain/ai";
+import { modelSupportsAdaptive, selectCurrentModels, type AiModelInfo } from "../domain/ai";
 import type { AiPort, AiRequest } from "../ports/ai";
 
 /**
@@ -48,5 +48,18 @@ export class ClaudeAi implements AiPort {
     return final.content
       .flatMap((block) => (block.type === "text" ? [block.text] : []))
       .join("");
+  }
+
+  async listModels(apiKey: string): Promise<AiModelInfo[]> {
+    const client = await this.#client(apiKey);
+    const raw: { id: string; displayName: string; createdAt: number }[] = [];
+    for await (const model of client.models.list()) {
+      raw.push({
+        id: model.id,
+        displayName: model.display_name,
+        createdAt: Date.parse(model.created_at),
+      });
+    }
+    return selectCurrentModels(raw);
   }
 }

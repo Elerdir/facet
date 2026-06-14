@@ -39,7 +39,7 @@ export function coreCommands(ws: Workspace, ui: UiActions): Command[] {
     { id: "view.files", title: "Zobrazit soubory", run: ui.showFiles },
     { id: "view.search", title: "Hledat v projektu", run: ui.showSearch },
     { id: "view.scm", title: "Zobrazit změny (Git)", run: ui.showScm },
-    { id: "git.clone", title: "Git: Klonovat repozitář…", run: ui.showScm },
+    { id: "git.clone", title: "Git: Klonovat repozitář…", run: () => ws.cloneUi.show() },
     { id: "git.init", title: "Git: Inicializovat repozitář", run: () => void ws.initRepo() },
     { id: "view.history", title: "Přepnout historii", hint: "Ctrl+H", run: ui.toggleHistory },
     { id: "tools.compare", title: "Porovnat soubory…", run: () => void ws.pickAndCompare() },

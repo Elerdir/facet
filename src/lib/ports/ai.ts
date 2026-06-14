@@ -1,4 +1,4 @@
-import type { AiMessage } from "../domain/ai";
+import type { AiMessage, AiModelInfo } from "../domain/ai";
 
 export interface AiRequest {
   apiKey: string;
@@ -22,4 +22,7 @@ export interface AiPort {
     onDelta: (text: string) => void,
     signal?: AbortSignal,
   ): Promise<string>;
+
+  /** Current selectable models for a given key (live; no legacy). */
+  listModels(apiKey: string): Promise<AiModelInfo[]>;
 }

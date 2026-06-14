@@ -14,6 +14,7 @@
   import SettingsModal from "./lib/components/settings/SettingsModal.svelte";
   import RenameModal from "./lib/components/rename/RenameModal.svelte";
   import HunkStageModal from "./lib/components/vcs/HunkStageModal.svelte";
+  import CloneModal from "./lib/components/vcs/CloneModal.svelte";
   import AiChatPanel from "./lib/components/ai/AiChatPanel.svelte";
   import { allTemplates } from "./lib/domain/newFileTemplates";
   import { ENCODINGS } from "./lib/domain/encodings";
@@ -374,6 +375,10 @@
 
 {#if workspace.hunkUi.file}
   <HunkStageModal />
+{/if}
+
+{#if workspace.cloneUi.open}
+  <CloneModal />
 {/if}
 
 {#if workspace.referencesUi.items}

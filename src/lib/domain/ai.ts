@@ -8,24 +8,64 @@ export interface AiMessage {
 export interface AiModelInfo {
   id: string;
   label: string;
-  /** Whether the model supports adaptive thinking. */
-  adaptive: boolean;
 }
 
-export const AI_MODELS: AiModelInfo[] = [
-  { id: "claude-opus-4-8", label: "Claude Opus 4.8 (nejschopnější)", adaptive: true },
-  { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6 (rychlý)", adaptive: true },
-  { id: "claude-haiku-4-5", label: "Claude Haiku 4.5 (nejlevnější)", adaptive: false },
-];
+/** A model as returned by the Models API. */
+export interface RawModel {
+  id: string;
+  displayName: string;
+  /** Epoch ms; newer wins when collapsing a family to its latest member. */
+  createdAt: number;
+}
+
+/** Current model families we surface — newest member of each, no legacy. */
+const CURRENT_FAMILIES = ["fable", "opus", "sonnet", "haiku"] as const;
+
+function familyOf(id: string): string | null {
+  const match = id.match(/^claude-(fable|opus|sonnet|haiku)-/);
+  return match ? match[1] : null;
+}
+
+/**
+ * Reduce the live model list to the current flagship of each family. The 4.x+
+ * naming (`claude-opus-4-8`, `claude-haiku-4-5`, …) is kept; older `claude-3-…`
+ * legacy ids don't match the family regex and are dropped.
+ */
+export function selectCurrentModels(models: RawModel[]): AiModelInfo[] {
+  const newest = new Map<string, RawModel>();
+  for (const m of models) {
+    const fam = familyOf(m.id);
+    if (!fam) continue;
+    const cur = newest.get(fam);
+    if (!cur || m.createdAt > cur.createdAt) newest.set(fam, m);
+  }
+  return CURRENT_FAMILIES.flatMap((fam) => {
+    const m = newest.get(fam);
+    return m ? [{ id: m.id, label: m.displayName }] : [];
+  });
+}
 
 export const DEFAULT_AI_MODEL = "claude-opus-4-8";
 
+/** Accept any Claude model id (the live list is authoritative). */
 export function isKnownAiModel(id: string): boolean {
-  return AI_MODELS.some((m) => m.id === id);
+  return /^claude-/.test(id);
 }
 
+/**
+ * Adaptive thinking support, by id pattern: Opus/Sonnet 4.6+ and Fable yes,
+ * Haiku and older no. Pattern-based so it stays correct as models advance.
+ */
 export function modelSupportsAdaptive(id: string): boolean {
-  return AI_MODELS.find((m) => m.id === id)?.adaptive ?? false;
+  if (/^claude-haiku-/.test(id)) return false;
+  if (/^claude-fable-/.test(id)) return true;
+  const m = id.match(/^claude-(?:opus|sonnet)-(\d+)-(\d+)/);
+  if (m) {
+    const major = Number(m[1]);
+    const minor = Number(m[2]);
+    return major > 4 || (major === 4 && minor >= 6);
+  }
+  return false;
 }
 
 /** Cap injected context so a huge file can't blow up the request. */

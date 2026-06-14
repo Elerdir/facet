@@ -12,6 +12,7 @@ import { ReferencesUiStore } from "./referencesUi.svelte";
 import { AiChatStore } from "./ai.svelte";
 import { TextFormatStore } from "./textFormat.svelte";
 import { HunkStageUiStore } from "./hunkUi.svelte";
+import { CloneUiStore } from "./cloneUi.svelte";
 import {
   parseUnifiedDiff,
   buildPatch,
@@ -70,6 +71,7 @@ export class Workspace {
   readonly ai: AiChatStore;
   readonly textFormat = new TextFormatStore();
   readonly hunkUi = new HunkStageUiStore();
+  readonly cloneUi = new CloneUiStore();
 
   #fs: FileSystemPort;
   #dialog: DialogPort;

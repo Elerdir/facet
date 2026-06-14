@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
-  AI_MODELS,
   DEFAULT_AI_MODEL,
   isKnownAiModel,
   modelSupportsAdaptive,
+  selectCurrentModels,
   truncateContext,
   buildSystemPrompt,
   buildSelectionPrompt,
@@ -12,15 +12,33 @@ import {
 } from "./ai";
 
 describe("AI models", () => {
-  it("has the default model in the catalogue", () => {
+  it("accepts any Claude model id, rejects others", () => {
     expect(isKnownAiModel(DEFAULT_AI_MODEL)).toBe(true);
-    expect(AI_MODELS.length).toBeGreaterThan(0);
+    expect(isKnownAiModel("claude-fable-5")).toBe(true);
+    expect(isKnownAiModel("gpt-4")).toBe(false);
   });
 
-  it("knows adaptive-thinking support per model", () => {
+  it("derives adaptive-thinking support from the id pattern", () => {
     expect(modelSupportsAdaptive("claude-opus-4-8")).toBe(true);
+    expect(modelSupportsAdaptive("claude-sonnet-4-6")).toBe(true);
+    expect(modelSupportsAdaptive("claude-fable-5")).toBe(true);
     expect(modelSupportsAdaptive("claude-haiku-4-5")).toBe(false);
+    expect(modelSupportsAdaptive("claude-sonnet-4-5")).toBe(false); // older
     expect(modelSupportsAdaptive("unknown")).toBe(false);
+  });
+
+  it("selectCurrentModels keeps the newest of each family and drops legacy", () => {
+    const current = selectCurrentModels([
+      { id: "claude-opus-4-8", displayName: "Opus 4.8", createdAt: 800 },
+      { id: "claude-opus-4-6", displayName: "Opus 4.6", createdAt: 600 },
+      { id: "claude-sonnet-4-6", displayName: "Sonnet 4.6", createdAt: 660 },
+      { id: "claude-haiku-4-5", displayName: "Haiku 4.5", createdAt: 450 },
+      { id: "claude-3-5-haiku-20241022", displayName: "Haiku 3.5 (legacy)", createdAt: 100 },
+    ]);
+    const ids = current.map((m) => m.id);
+    expect(ids).toEqual(["claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5"]);
+    expect(ids).not.toContain("claude-opus-4-6");
+    expect(ids).not.toContain("claude-3-5-haiku-20241022");
   });
 });
 

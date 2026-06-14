@@ -11,6 +11,7 @@
     Sparkles,
     GitPullRequest,
     Rows3,
+    CloudDownload,
   } from "@lucide/svelte";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { getWorkspace } from "../../application/context";
@@ -119,6 +120,9 @@
 <div class="scm">
   <div class="header">
     <span class="title">Změny</span>
+    <button class="icon" title="Klonovat repozitář…" onclick={() => ws.cloneUi.show()}>
+      <CloudDownload size={14} />
+    </button>
     <button
       class="icon"
       title="Obnovit"
@@ -319,6 +323,7 @@
   }
 
   .title {
+    flex: 1;
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.06em;
