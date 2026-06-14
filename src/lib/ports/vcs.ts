@@ -27,6 +27,10 @@ export interface VcsPort {
   blame(repo: string, file: string): Promise<BlameLine[]>;
   /** Unified diff of staged changes against HEAD. */
   stagedDiff(repo: string): Promise<string>;
+  /** Unstaged unified diff of one file (working tree vs index). */
+  unstagedDiff(repo: string, file: string): Promise<string>;
+  /** Apply a patch to the index only (stage a hunk). */
+  applyCached(repo: string, patch: string): Promise<void>;
   init(path: string): Promise<void>;
   clone(url: string, target: string, auth?: string | null): Promise<string>;
   remoteUrl(repo: string): Promise<string | null>;

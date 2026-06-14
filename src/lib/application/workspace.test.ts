@@ -229,6 +229,28 @@ describe("Workspace open flow", () => {
     expect(vcs.inits).toEqual(["/proj"]);
   });
 
+  it("parses unstaged hunks and stages selected ones via a patch", async () => {
+    const { vcs, ws } = setup();
+    await ws.vcs.refresh("/repo");
+    vcs.unstagedDiffResult =
+      "diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ b/a.txt\n@@ -1 +1 @@\n-a\n+b\n";
+
+    const parsed = await ws.fileHunks("a.txt");
+    expect(parsed!.hunks).toHaveLength(1);
+
+    await ws.stageHunks(parsed!.fileHeader, parsed!.hunks);
+    expect(vcs.appliedPatches).toHaveLength(1);
+    expect(vcs.appliedPatches[0]).toContain("diff --git a/a.txt b/a.txt");
+    expect(vcs.appliedPatches[0]).toContain("+b");
+  });
+
+  it("does not apply a patch when no hunks are chosen", async () => {
+    const { vcs, ws } = setup();
+    await ws.vcs.refresh("/repo");
+    await ws.stageHunks("header\n", []);
+    expect(vcs.appliedPatches).toHaveLength(0);
+  });
+
   it("lists GitHub pull requests of the origin remote with the saved token", async () => {
     const { vcs, github, ws } = setup();
     ws.settings.current = { ...ws.settings.current, githubToken: "ghp_tok" };

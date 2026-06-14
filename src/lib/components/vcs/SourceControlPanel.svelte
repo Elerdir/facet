@@ -10,6 +10,7 @@
     ArrowUp,
     Sparkles,
     GitPullRequest,
+    Rows3,
   } from "@lucide/svelte";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { getWorkspace } from "../../application/context";
@@ -236,6 +237,13 @@
                 <Minus size={13} />
               </button>
             {:else}
+              <button
+                class="act"
+                title="Připravit po blocích…"
+                onclick={() => ws.hunkUi.open(f.path)}
+              >
+                <Rows3 size={13} />
+              </button>
               <button class="act" title="Připravit" onclick={() => ws.vcs.stage(f.path)}>
                 <Plus size={13} />
               </button>

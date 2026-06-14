@@ -78,4 +78,12 @@ export class TauriVcs implements VcsPort {
   stagedDiff(repo: string): Promise<string> {
     return invoke<string>("git_staged_diff", { repo });
   }
+
+  unstagedDiff(repo: string, file: string): Promise<string> {
+    return invoke<string>("git_unstaged_diff", { repo, file });
+  }
+
+  applyCached(repo: string, patch: string): Promise<void> {
+    return invoke<void>("git_apply_cached", { repo, patch });
+  }
 }

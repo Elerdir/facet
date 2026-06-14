@@ -421,6 +421,56 @@ pub fn git_clone(url: String, target: String, auth: Option<String>) -> Result<St
     }
 }
 
+/// Unstaged unified diff of one file (working tree vs index), for hunk staging.
+#[tauri::command]
+pub fn git_unstaged_diff(repo: String, file: String) -> Result<String, String> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(&repo)
+        .arg("diff")
+        .arg("--")
+        .arg(&file)
+        .output()
+        .map_err(|e| format!("Nelze spustit git: {e}"))?;
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).trim().to_string())
+    }
+}
+
+/// Apply a patch to the index only (`git apply --cached`) — stages a hunk.
+#[tauri::command]
+pub fn git_apply_cached(repo: String, patch: String) -> Result<(), String> {
+    use std::io::Write;
+    use std::process::Stdio;
+
+    let mut child = Command::new("git")
+        .arg("-C")
+        .arg(&repo)
+        .arg("apply")
+        .arg("--cached")
+        .arg("--whitespace=nowarn")
+        .arg("-")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Nelze spustit git: {e}"))?;
+    child
+        .stdin
+        .as_mut()
+        .ok_or("git nemá stdin")?
+        .write_all(patch.as_bytes())
+        .map_err(|e| e.to_string())?;
+    let out = child.wait_with_output().map_err(|e| e.to_string())?;
+    if out.status.success() {
+        Ok(())
+    } else {
+        Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+    }
+}
+
 /// Initialize a new git repository in the given folder.
 #[tauri::command]
 pub fn git_init(path: String) -> Result<(), String> {
@@ -611,5 +661,25 @@ mod tests {
         let diff = GitVcs.staged_diff(&p).unwrap();
         assert!(diff.contains("+v2"));
         assert!(diff.contains("-v1"));
+    }
+
+    #[test]
+    fn unstaged_diff_and_apply_cached_stage_a_change() {
+        let dir = tempdir().unwrap();
+        let _repo = init_repo(dir.path());
+        let p = dir.path().to_string_lossy().to_string();
+        std::fs::write(dir.path().join("a.txt"), "one\ntwo\nthree\n").unwrap();
+        GitVcs.stage(&p, "a.txt").unwrap();
+        GitVcs.commit(&p, "init").unwrap();
+
+        std::fs::write(dir.path().join("a.txt"), "one\nTWO\nthree\n").unwrap();
+        let diff = git_unstaged_diff(p.clone(), "a.txt".into()).unwrap();
+        assert!(diff.contains("+TWO"));
+        assert!(diff.contains("-two"));
+
+        // Nothing staged yet, then apply the patch to the index.
+        assert!(GitVcs.status(&p).files.iter().all(|f| !f.staged));
+        git_apply_cached(p.clone(), diff).unwrap();
+        assert!(GitVcs.status(&p).files.iter().any(|f| f.staged));
     }
 }

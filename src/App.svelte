@@ -13,6 +13,7 @@
   import Palette from "./lib/components/palette/Palette.svelte";
   import SettingsModal from "./lib/components/settings/SettingsModal.svelte";
   import RenameModal from "./lib/components/rename/RenameModal.svelte";
+  import HunkStageModal from "./lib/components/vcs/HunkStageModal.svelte";
   import AiChatPanel from "./lib/components/ai/AiChatPanel.svelte";
   import { allTemplates } from "./lib/domain/newFileTemplates";
   import { ENCODINGS } from "./lib/domain/encodings";
@@ -369,6 +370,10 @@
 
 {#if workspace.renameUi.request}
   <RenameModal />
+{/if}
+
+{#if workspace.hunkUi.file}
+  <HunkStageModal />
 {/if}
 
 {#if workspace.referencesUi.items}
