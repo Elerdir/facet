@@ -65,6 +65,21 @@ describe("AiChatStore", () => {
     expect(store.messages).toHaveLength(0);
   });
 
+  it("ghostComplete returns the stripped suggestion", async () => {
+    const { port, store } = setup();
+    port.deltas = ["```ts\n", "console.log(x);", "\n```"];
+    const out = await store.ghostComplete("const x = 1;\n", "", "a.ts", new AbortController().signal);
+    expect(out).toBe("console.log(x);");
+    expect(port.requests[0].maxTokens).toBe(256);
+    expect(port.requests[0].system).toContain("doplňování");
+  });
+
+  it("ghostComplete returns empty without an API key", async () => {
+    const { store, settings } = setup();
+    settings.current = { ...settings.current, aiApiKey: "" };
+    expect(await store.ghostComplete("a", "b", "a.ts", new AbortController().signal)).toBe("");
+  });
+
   it("clear resets the conversation", async () => {
     const { store } = setup();
     await store.send("ahoj");

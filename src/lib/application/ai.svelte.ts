@@ -2,8 +2,11 @@ import {
   buildSystemPrompt,
   buildInlineEditPrompt,
   buildProjectEditPrompt,
+  buildGhostPrompt,
+  stripCodeFences,
   INLINE_EDIT_SYSTEM,
   MULTI_EDIT_SYSTEM,
+  GHOST_SYSTEM,
   type AiMessage,
   type AiModelInfo,
   type FileContext,
@@ -137,6 +140,29 @@ export class AiChatStore {
       },
       onDelta,
     );
+  }
+
+  /** Predictive ghost completion at the cursor (returns text to insert). */
+  async ghostComplete(
+    prefix: string,
+    suffix: string,
+    fileName: string,
+    signal: AbortSignal,
+  ): Promise<string> {
+    const cfg = this.#settings.current;
+    if (cfg.aiApiKey.trim() === "") return "";
+    const out = await this.#port.stream(
+      {
+        apiKey: cfg.aiApiKey,
+        model: cfg.aiModel,
+        system: GHOST_SYSTEM,
+        messages: [{ role: "user", content: buildGhostPrompt(prefix, suffix, fileName) }],
+        maxTokens: 256,
+      },
+      () => {},
+      signal,
+    );
+    return stripCodeFences(out);
   }
 
   /** One-shot completion outside the chat (e.g. a commit message). */

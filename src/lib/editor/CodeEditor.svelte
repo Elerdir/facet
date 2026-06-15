@@ -8,6 +8,7 @@
   import { showMinimap } from "@replit/codemirror-minimap";
   import { resolveHighlighting, loadHighlightExtension } from "./highlighting";
   import { lspCompletion, lspHoverTooltip, lspLinter } from "./lspExtensions";
+  import { ghostCompletion } from "./ghostCompletion";
   import { LARGE_TEXT_BYTES } from "../domain/fileInfo";
   import type { Buffer } from "../domain/buffer";
   import type { BlameLine } from "../domain/vcs";
@@ -35,6 +36,7 @@
     onFindReferences,
     onRenameRequest,
     onInlineEdit,
+    ghostComplete,
     onCursor,
     onRevealConsumed,
   }: {
@@ -55,6 +57,10 @@
     onFindReferences?: (line: number, character: number) => void;
     onRenameRequest?: (line: number, character: number) => void;
     onInlineEdit?: (sel: { from: number; to: number; text: string }) => void;
+    ghostComplete?: (
+      params: { prefix: string; suffix: string; fileName: string },
+      signal: AbortSignal,
+    ) => Promise<string>;
     onCursor?: (info: {
       line: number;
       col: number;
@@ -181,6 +187,13 @@
         ...(lspHover ? [lspHoverTooltip(lspHover)] : []),
         ...(onGotoDefinition || onFindReferences || onRenameRequest
           ? lspNavExtensions()
+          : []),
+        ...(ghostComplete
+          ? [
+              ghostCompletion(
+                (p, signal) => ghostComplete({ ...p, fileName: buf.name }, signal),
+              ),
+            ]
           : []),
         ...(onInlineEdit
           ? [

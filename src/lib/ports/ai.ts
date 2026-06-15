@@ -5,6 +5,8 @@ export interface AiRequest {
   model: string;
   system?: string;
   messages: AiMessage[];
+  /** Output cap; defaults to a chat-sized value. Low for completions. */
+  maxTokens?: number;
 }
 
 /**

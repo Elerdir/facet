@@ -126,6 +126,16 @@ export function stripCodeFences(text: string): string {
   return m ? m[1] : text;
 }
 
+export const GHOST_SYSTEM =
+  "Jsi nástroj pro automatické doplňování kódu (jako Copilot). Doplň kód v místě " +
+  "kurzoru mezi PREFIX a SUFFIX. Vrať POUZE text k vložení za kurzor — žádné " +
+  "vysvětlení, žádné ``` bloky, neopakuj PREFIX ani SUFFIX. Drž se stylu a jazyka " +
+  "okolního kódu. Pokud není co rozumného doplnit, vrať prázdný řetězec.";
+
+export function buildGhostPrompt(prefix: string, suffix: string, fileName: string): string {
+  return `Soubor: ${fileName}\n\nPREFIX:\n${prefix}\n\nSUFFIX:\n${suffix}\n\nDoplň kód za kurzor (mezi PREFIX a SUFFIX).`;
+}
+
 export const MULTI_EDIT_SYSTEM =
   "Jsi AI, která upravuje kód napříč soubory. Dostaneš obsah otevřených souborů " +
   "a požadavek. Vrať POUZE úpravy ve formátu bloků (žádné jiné ``` bloky):\n\n" +

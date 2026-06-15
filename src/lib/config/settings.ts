@@ -9,6 +9,7 @@ export interface Settings {
   lspEnabled: boolean;
   aiApiKey: string;
   aiModel: string;
+  aiGhostCompletion: boolean;
   editorFontFamily: string;
   editorFontSize: number;
   editorMinimap: boolean;
@@ -38,6 +39,7 @@ export const DEFAULT_SETTINGS: Settings = {
   lspEnabled: true,
   aiApiKey: "",
   aiModel: DEFAULT_AI_MODEL,
+  aiGhostCompletion: false,
   editorFontFamily: '"Cascadia Code", "JetBrains Mono", Consolas, monospace',
   editorFontSize: 13,
   editorMinimap: true,
@@ -84,6 +86,10 @@ export function parseSettings(raw: string): Settings {
       typeof r.aiModel === "string" && isKnownAiModel(r.aiModel)
         ? r.aiModel
         : DEFAULT_SETTINGS.aiModel,
+    aiGhostCompletion:
+      typeof r.aiGhostCompletion === "boolean"
+        ? r.aiGhostCompletion
+        : DEFAULT_SETTINGS.aiGhostCompletion,
     editorFontFamily:
       typeof r.editorFontFamily === "string" && r.editorFontFamily.trim() !== ""
         ? r.editorFontFamily
