@@ -17,6 +17,7 @@ export interface UiActions {
   showScm: () => void;
   showProblems: () => void;
   showOutline: () => void;
+  showDebug: () => void;
   showAi: () => void;
   openNewFile: () => void;
   toggleTerminal: () => void;
@@ -43,6 +44,21 @@ export function coreCommands(ws: Workspace, ui: UiActions): Command[] {
     { id: "view.scm", title: "Zobrazit změny (Git)", run: ui.showScm },
     { id: "view.problems", title: "Zobrazit problémy", run: ui.showProblems },
     { id: "view.outline", title: "Zobrazit osnovu (symboly)", run: ui.showOutline },
+    { id: "view.debug", title: "Zobrazit ladění", run: ui.showDebug },
+    {
+      id: "debug.start",
+      title: "Ladění: Spustit",
+      hint: "F5",
+      run: () => {
+        ui.showDebug();
+        void ws.startDebugging();
+      },
+    },
+    { id: "debug.stop", title: "Ladění: Zastavit", hint: "Shift+F5", run: () => void ws.stopDebugging() },
+    { id: "debug.continue", title: "Ladění: Pokračovat", run: () => ws.debug.continue() },
+    { id: "debug.stepOver", title: "Ladění: Překročit", run: () => ws.debug.next() },
+    { id: "debug.stepInto", title: "Ladění: Vstoupit", run: () => ws.debug.stepIn() },
+    { id: "debug.stepOut", title: "Ladění: Vystoupit", run: () => ws.debug.stepOut() },
     { id: "git.clone", title: "Git: Klonovat repozitář…", run: () => ws.cloneUi.show() },
     { id: "git.init", title: "Git: Inicializovat repozitář", run: () => void ws.initRepo() },
     { id: "view.history", title: "Přepnout historii", hint: "Ctrl+H", run: ui.toggleHistory },

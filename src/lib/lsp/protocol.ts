@@ -34,18 +34,23 @@ function indexOfDoubleCRLF(buf: Uint8Array): number {
   return -1;
 }
 
-/** Accumulates raw bytes from a stream and yields complete LSP messages. */
-export class MessageBuffer {
+/**
+ * Accumulates raw bytes from a stream and yields complete `Content-Length`
+ * framed messages. Generic over the parsed body type so the same framing serves
+ * both LSP (`JsonRpcMessage`) and DAP (`DapMessage`) — the wire framing is
+ * identical, only the JSON shape differs.
+ */
+export class MessageBuffer<T = JsonRpcMessage> {
   #buf = new Uint8Array(0);
   #decoder = new TextDecoder();
 
-  append(chunk: Uint8Array): JsonRpcMessage[] {
+  append(chunk: Uint8Array): T[] {
     const merged = new Uint8Array(this.#buf.length + chunk.length);
     merged.set(this.#buf, 0);
     merged.set(chunk, this.#buf.length);
     this.#buf = merged;
 
-    const messages: JsonRpcMessage[] = [];
+    const messages: T[] = [];
     for (;;) {
       const headerEnd = indexOfDoubleCRLF(this.#buf);
       if (headerEnd < 0) break;
@@ -60,7 +65,7 @@ export class MessageBuffer {
       if (this.#buf.length < bodyStart + length) break; // body not fully arrived
       const body = this.#buf.subarray(bodyStart, bodyStart + length);
       try {
-        messages.push(JSON.parse(this.#decoder.decode(body)) as JsonRpcMessage);
+        messages.push(JSON.parse(this.#decoder.decode(body)) as T);
       } catch {
         // skip a malformed message
       }

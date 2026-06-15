@@ -36,6 +36,10 @@ import {
 } from "../domain/ai";
 import type { AiPort } from "../ports/ai";
 import { LspManager, type LspDiagnostic, type LspCompletionItem } from "./lsp.svelte";
+import { DebugManager } from "./debug.svelte";
+import { BreakpointStore } from "./breakpoints.svelte";
+import { adapterForFile, launchConfig } from "../dap/adapters";
+import type { DapTransport } from "../ports/dap";
 import { serializeSession, parseSession, type SessionData } from "../config/session";
 import { appConfigDir, join } from "@tauri-apps/api/path";
 import { isDirty, type Buffer } from "../domain/buffer";
@@ -57,6 +61,19 @@ import type { FormatterPort } from "../ports/formatter";
 import type { FormatAction } from "../domain/formatting";
 import type { Orientation } from "../domain/layout";
 
+/** No-op debug transport for contexts without a real adapter (e.g. tests). */
+const NULL_DAP: DapTransport = {
+  async start() {},
+  async send() {},
+  async stop() {},
+  onData() {
+    return () => {};
+  },
+  onExit() {
+    return () => {};
+  },
+};
+
 /**
  * Application facade: composes the buffer / layout / explorer stores and
  * exposes the high-level actions the UI invokes. Keeps cross-store invariants
@@ -75,6 +92,8 @@ export class Workspace {
   readonly renameUi = new RenameUiStore();
   readonly referencesUi = new ReferencesUiStore();
   readonly lsp: LspManager;
+  readonly debug: DebugManager;
+  readonly breakpoints = new BreakpointStore();
   readonly ai: AiChatStore;
   readonly textFormat = new TextFormatStore();
   readonly hunkUi = new HunkStageUiStore();
@@ -104,6 +123,7 @@ export class Workspace {
     watcher: WatcherPort | null = null,
     secrets: SecretsPort | null = null,
     github: GithubPort | null = null,
+    dap: DapTransport | null = null,
   ) {
     this.buffers = new BufferStore(fs, dialog);
     this.layout = new LayoutStore();
@@ -116,6 +136,7 @@ export class Workspace {
     this.formatter = new FormatterService(formatter);
     this.settings = new SettingsStore(fs, secrets);
     this.lsp = new LspManager(lsp);
+    this.debug = new DebugManager(dap ?? NULL_DAP);
     this.ai = new AiChatStore(ai, this.settings);
     this.#fs = fs;
     this.#dialog = dialog;
@@ -198,6 +219,45 @@ export class Workspace {
       .map(([uri, diagnostics]) => ({ path: pathFromFileUri(uri), diagnostics }))
       .filter((f) => f.diagnostics.length > 0)
       .sort((a, b) => a.path.localeCompare(b.path));
+  }
+
+  /** The buffer shown in the active tab, or null. */
+  activeBuffer(): Buffer | null {
+    const id = this.layout.activeTabId;
+    return id ? (this.buffers.get(id) ?? null) : null;
+  }
+
+  /** Toggle a breakpoint and, if a session is live, push the file's set. */
+  toggleBreakpoint(path: string, line: number): void {
+    this.breakpoints.toggle(path, line);
+  }
+
+  /** Can the active file be debugged (a known adapter maps to its type)? */
+  debugAdapterAvailable(): boolean {
+    const buf = this.activeBuffer();
+    return !!buf?.path && adapterForFile(buf.name) !== null;
+  }
+
+  /** Launch the active file under its debug adapter, with current breakpoints. */
+  async startDebugging(stopOnEntry = false): Promise<void> {
+    const buf = this.activeBuffer();
+    if (!buf?.path) {
+      this.debug.error = "Otevři soubor, který chceš ladit.";
+      return;
+    }
+    const spec = adapterForFile(buf.name);
+    if (!spec) {
+      this.debug.error = `Pro ${buf.name} není nakonfigurován ladicí adaptér.`;
+      return;
+    }
+    if (isDirty(buf)) await this.saveActive();
+    const cwd = this.explorer.rootPath ?? dirname(buf.path);
+    const args = launchConfig(spec, buf.path, cwd, stopOnEntry);
+    await this.debug.start(spec, args, cwd, this.breakpoints.byFile());
+  }
+
+  stopDebugging(): Promise<void> {
+    return this.debug.stop();
   }
 
   async lspFindReferences(path: string, line: number, character: number): Promise<void> {

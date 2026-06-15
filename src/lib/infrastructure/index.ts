@@ -6,6 +6,7 @@ import { TauriDiff } from "./tauriDiff";
 import { TauriVcs } from "./tauriVcs";
 import { TauriFormatter } from "./tauriFormatter";
 import { TauriLsp } from "./tauriLsp";
+import { TauriDap } from "./tauriDap";
 import { TauriWatcher } from "./tauriWatcher";
 import { TauriSecrets } from "./tauriSecrets";
 import { GithubApi } from "./githubApi";
@@ -27,4 +28,5 @@ export const workspace = new Workspace(
   new TauriWatcher(),
   new TauriSecrets(),
   new GithubApi(),
+  new TauriDap(),
 );
