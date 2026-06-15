@@ -1,5 +1,7 @@
 import {
   buildSystemPrompt,
+  buildInlineEditPrompt,
+  INLINE_EDIT_SYSTEM,
   type AiMessage,
   type AiModelInfo,
   type FileContext,
@@ -89,6 +91,28 @@ export class AiChatStore {
   clear(): void {
     this.messages = [];
     this.error = null;
+  }
+
+  /** Stream an inline edit: returns the model's replacement for `code`. */
+  async inlineEdit(
+    instruction: string,
+    code: string,
+    fileName: string,
+    onDelta: (text: string) => void,
+  ): Promise<string> {
+    const cfg = this.#settings.current;
+    if (!cfg.aiApiKey.trim()) {
+      throw new Error("Chybí API klíč — nastav ho v Nastavení (Ctrl+,).");
+    }
+    return this.#port.stream(
+      {
+        apiKey: cfg.aiApiKey,
+        model: cfg.aiModel,
+        system: INLINE_EDIT_SYSTEM,
+        messages: [{ role: "user", content: buildInlineEditPrompt(instruction, code, fileName) }],
+      },
+      onDelta,
+    );
   }
 
   /** One-shot completion outside the chat (e.g. a commit message). */

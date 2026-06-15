@@ -83,12 +83,30 @@
               if (buffer?.path) ws.renameUi.open({ path: buffer.path, line, character: ch });
             }
           : undefined}
+        onInlineEdit={(sel) => {
+          if (buffer && !buffer.binary) {
+            ws.startInlineEdit({
+              bufferId: buffer.id,
+              from: sel.from,
+              to: sel.to,
+              original: sel.text,
+              fileName: buffer.name,
+            });
+          }
+        }}
         onInput={(text) => {
           if (buffer) ws.setContent(buffer.id, text);
         }}
         onCursor={(info) => {
           if (ws.layout.activeLeafId === leaf.id) {
-            ws.editorStatus.set(info.line, info.col, info.selection, info.text);
+            ws.editorStatus.set(
+              info.line,
+              info.col,
+              info.selection,
+              info.text,
+              info.from,
+              info.to,
+            );
           }
         }}
         onRevealConsumed={() => ws.layout.consumeReveal()}

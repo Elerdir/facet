@@ -8,6 +8,8 @@ import {
   buildSystemPrompt,
   buildSelectionPrompt,
   buildCommitPrompt,
+  buildInlineEditPrompt,
+  stripCodeFences,
   MAX_CONTEXT_CHARS,
 } from "./ai";
 
@@ -70,5 +72,18 @@ describe("prompt builders", () => {
     const out = buildCommitPrompt("+added line");
     expect(out).toContain("+added line");
     expect(out).toContain("commit");
+  });
+
+  it("builds an inline-edit prompt with instruction and code", () => {
+    const out = buildInlineEditPrompt("přidej typ", "let x", "a.ts");
+    expect(out).toContain("přidej typ");
+    expect(out).toContain("let x");
+    expect(out).toContain("a.ts");
+  });
+
+  it("strips a wrapping code fence but keeps fence-free text", () => {
+    expect(stripCodeFences("```ts\nconst a = 1;\n```")).toBe("const a = 1;");
+    expect(stripCodeFences("```\nplain\n```")).toBe("plain");
+    expect(stripCodeFences("const a = 1;")).toBe("const a = 1;");
   });
 });

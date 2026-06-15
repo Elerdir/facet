@@ -13,6 +13,8 @@ import { AiChatStore } from "./ai.svelte";
 import { TextFormatStore } from "./textFormat.svelte";
 import { HunkStageUiStore } from "./hunkUi.svelte";
 import { CloneUiStore } from "./cloneUi.svelte";
+import { InlineEditStore, type InlineEditTarget } from "./inlineEdit.svelte";
+import { stripCodeFences } from "../domain/ai";
 import {
   parseUnifiedDiff,
   buildPatch,
@@ -72,6 +74,7 @@ export class Workspace {
   readonly textFormat = new TextFormatStore();
   readonly hunkUi = new HunkStageUiStore();
   readonly cloneUi = new CloneUiStore();
+  readonly inlineEdit = new InlineEditStore();
 
   #fs: FileSystemPort;
   #dialog: DialogPort;
@@ -319,6 +322,76 @@ export class Workspace {
   async showGitDiff(file: string): Promise<void> {
     const rows = await this.vcs.diffHead(file);
     this.compare.showRows(`HEAD: ${file}`, file, rows);
+  }
+
+  /** Open the inline AI edit panel for an explicit range (from the editor, Ctrl+K). */
+  startInlineEdit(target: InlineEditTarget): void {
+    this.inlineEdit.open(target);
+  }
+
+  /** Open inline AI edit from the active editor's selection (or current line). */
+  startInlineEditFromStatus(): void {
+    const id = this.layout.activeTabId;
+    const buf = id ? this.buffers.get(id) : null;
+    if (!buf || buf.binary) return;
+    let { from, to } = this.editorStatus;
+    if (from === to) {
+      const start = buf.content.lastIndexOf("\n", from - 1) + 1;
+      let end = buf.content.indexOf("\n", from);
+      if (end === -1) end = buf.content.length;
+      from = start;
+      to = end;
+    }
+    this.startInlineEdit({
+      bufferId: buf.id,
+      from,
+      to,
+      original: buf.content.slice(from, to),
+      fileName: buf.name,
+    });
+  }
+
+  /** Run the AI for the pending inline edit, streaming into the store. */
+  async runInlineEdit(): Promise<void> {
+    const ie = this.inlineEdit;
+    if (!ie.target || ie.instruction.trim() === "") return;
+    ie.status = "generating";
+    ie.generated = "";
+    ie.error = null;
+    try {
+      await this.ai.inlineEdit(
+        ie.instruction,
+        ie.target.original,
+        ie.target.fileName,
+        (delta) => (ie.generated += delta),
+      );
+      ie.status = "review";
+    } catch (e) {
+      ie.status = "error";
+      ie.error = e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  /** Apply the reviewed inline edit to the buffer and close the panel. */
+  acceptInlineEdit(): void {
+    const ie = this.inlineEdit;
+    const target = ie.target;
+    if (!target) return;
+    const buf = this.buffers.get(target.bufferId);
+    if (!buf) {
+      ie.close();
+      return;
+    }
+    const replacement = stripCodeFences(ie.generated);
+    let content: string | null = null;
+    if (buf.content.slice(target.from, target.to) === target.original) {
+      content = buf.content.slice(0, target.from) + replacement + buf.content.slice(target.to);
+    } else if (buf.content.includes(target.original)) {
+      // Offsets drifted — fall back to replacing the first occurrence.
+      content = buf.content.replace(target.original, replacement);
+    }
+    if (content !== null) this.setContent(buf.id, content);
+    ie.close();
   }
 
   /** Ask the AI about the current selection (or the whole active file). */
