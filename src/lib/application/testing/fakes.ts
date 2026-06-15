@@ -23,6 +23,8 @@ import type { SecretsPort } from "../../ports/secrets";
 import type { GithubPort } from "../../ports/github";
 import type { GithubRepoRef, PullRequestInfo } from "../../domain/github";
 import { encodeMessage, MessageBuffer, type JsonRpcMessage } from "../../lsp/protocol";
+import type { DapTransport } from "../../ports/dap";
+import { encodeDap, DapBuffer, type DapMessage } from "../../dap/protocol";
 
 /** In-memory FileSystemPort for unit tests. */
 export class FakeFileSystem implements FileSystemPort {
@@ -285,6 +287,51 @@ export class FakeLspTransport implements LspTransport {
   sentMessages(): JsonRpcMessage[] {
     const buffer = new MessageBuffer();
     const out: JsonRpcMessage[] = [];
+    for (const bytes of this.sent) out.push(...buffer.append(bytes));
+    return out;
+  }
+}
+
+/** In-memory DapTransport for unit tests, with helpers to script an adapter. */
+export class FakeDapTransport implements DapTransport {
+  started: { id: string; command: string }[] = [];
+  sent: Uint8Array[] = [];
+  stopped: string[] = [];
+  #dataHandler: ((id: string, bytes: Uint8Array) => void) | null = null;
+  #exitHandler: ((id: string) => void) | null = null;
+
+  async start(id: string, command: string, _args: string[], _cwd: string): Promise<void> {
+    this.started.push({ id, command });
+  }
+  async send(_id: string, bytes: Uint8Array): Promise<void> {
+    this.sent.push(bytes);
+  }
+  async stop(id: string): Promise<void> {
+    this.stopped.push(id);
+  }
+  onData(handler: (id: string, bytes: Uint8Array) => void): () => void {
+    this.#dataHandler = handler;
+    return () => {};
+  }
+  onExit(handler: (id: string) => void): () => void {
+    this.#exitHandler = handler;
+    return () => {};
+  }
+
+  /** Deliver an adapter message to the client. */
+  deliver(id: string, message: DapMessage): void {
+    this.#dataHandler?.(id, encodeDap(message));
+  }
+
+  /** Signal that the adapter process exited. */
+  exit(id: string): void {
+    this.#exitHandler?.(id);
+  }
+
+  /** Decode every message the client has sent so far. */
+  sentMessages(): DapMessage[] {
+    const buffer = new DapBuffer();
+    const out: DapMessage[] = [];
     for (const bytes of this.sent) out.push(...buffer.append(bytes));
     return out;
   }

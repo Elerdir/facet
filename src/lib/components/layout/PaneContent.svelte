@@ -30,6 +30,14 @@
   const lspDiagnostics = $derived(
     lspActive && buffer?.path ? ws.lspDiagnostics(buffer.path) : undefined,
   );
+  const breakpointLines = $derived(
+    buffer?.path ? ws.breakpoints.linesFor(buffer.path) : [],
+  );
+  const debugStopLine = $derived(
+    buffer?.path && ws.debug.currentLocation?.path === buffer.path
+      ? ws.debug.currentLocation.line
+      : null,
+  );
 </script>
 
 <div
@@ -98,6 +106,11 @@
               fileName: buffer.name,
             });
           }
+        }}
+        {breakpointLines}
+        {debugStopLine}
+        onToggleBreakpoint={(line) => {
+          if (buffer?.path) ws.toggleBreakpoint(buffer.path, line);
         }}
         onInput={(text) => {
           if (buffer) ws.setContent(buffer.id, text);

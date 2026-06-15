@@ -8,6 +8,7 @@
   import { showMinimap } from "@replit/codemirror-minimap";
   import { resolveHighlighting, loadHighlightExtension } from "./highlighting";
   import { lspCompletion, lspHoverTooltip, lspLinter } from "./lspExtensions";
+  import { breakpointExtensions } from "./breakpoints";
   import { ghostCompletion } from "./ghostCompletion";
   import { LARGE_TEXT_BYTES } from "../domain/fileInfo";
   import type { Buffer } from "../domain/buffer";
@@ -37,6 +38,9 @@
     onRenameRequest,
     onInlineEdit,
     ghostComplete,
+    breakpointLines,
+    debugStopLine = null,
+    onToggleBreakpoint,
     onCursor,
     onRevealConsumed,
   }: {
@@ -61,6 +65,9 @@
       params: { prefix: string; suffix: string; fileName: string },
       signal: AbortSignal,
     ) => Promise<string>;
+    breakpointLines?: number[];
+    debugStopLine?: number | null;
+    onToggleBreakpoint?: (line: number) => void;
     onCursor?: (info: {
       line: number;
       col: number;
@@ -159,6 +166,16 @@
   const blameComp = new Compartment();
   const lintComp = new Compartment();
   const minimapComp = new Compartment();
+  const bpComp = new Compartment();
+
+  function bpExtension() {
+    if (!onToggleBreakpoint) return [];
+    return breakpointExtensions({
+      lines: breakpointLines ?? [],
+      stopLine: debugStopLine ?? null,
+      onToggle: onToggleBreakpoint,
+    });
+  }
 
   function minimapExtension() {
     if (!minimap) return [];
@@ -179,6 +196,7 @@
         themeComp.of(theme === "dark" ? oneDark : []),
         highlight.of([]),
         blameComp.of(blameExtension()),
+        bpComp.of(bpExtension()),
         minimapComp.of(minimapExtension()),
         ...(lspDiagnostics !== undefined
           ? [lintComp.of(lspLinter(() => lspDiagnostics ?? [])), lintGutter()]
@@ -325,6 +343,15 @@
     }
   });
 
+  // Re-render breakpoints / stop-line highlight when the debug state changes.
+  $effect(() => {
+    void breakpointLines;
+    void debugStopLine;
+    if (view) {
+      view.dispatch({ effects: bpComp.reconfigure(bpExtension()) });
+    }
+  });
+
   // Push fresh LSP diagnostics (squiggles) as the server reports them.
   $effect(() => {
     const diags = lspDiagnostics;
@@ -408,5 +435,27 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .editor-host :global(.cm-breakpoint-gutter) {
+    width: 14px;
+    cursor: pointer;
+  }
+
+  .editor-host :global(.cm-breakpoint-gutter:hover) {
+    background: color-mix(in srgb, #f85149 18%, transparent);
+  }
+
+  .editor-host :global(.cm-breakpoint) {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    margin: 4px 2px 0;
+    border-radius: 50%;
+    background: #f85149;
+  }
+
+  .editor-host :global(.cm-debug-stop) {
+    background: color-mix(in srgb, #d29922 22%, transparent);
   }
 </style>

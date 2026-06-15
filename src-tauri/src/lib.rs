@@ -1,4 +1,5 @@
 mod commands;
+mod dap;
 mod detect;
 mod diff;
 mod history;
@@ -24,6 +25,7 @@ pub fn run() {
             history::init(&conn)?;
             app.manage(history::HistoryDb(std::sync::Mutex::new(conn)));
             app.manage(lsp::LspProcesses::default());
+            app.manage(dap::DapProcesses::default());
             app.manage(watch::FsWatcher::default());
             app.manage(terminal::Terminals::default());
             Ok(())
@@ -65,6 +67,9 @@ pub fn run() {
             lsp::lsp_start,
             lsp::lsp_send,
             lsp::lsp_stop,
+            dap::dap_start,
+            dap::dap_send,
+            dap::dap_stop,
             watch::watch_folder,
             terminal::term_start,
             terminal::term_write,

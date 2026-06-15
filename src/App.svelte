@@ -12,6 +12,7 @@
   import SearchPanel from "./lib/components/search/SearchPanel.svelte";
   import ProblemsPanel from "./lib/components/problems/ProblemsPanel.svelte";
   import OutlinePanel from "./lib/components/outline/OutlinePanel.svelte";
+  import DebugPanel from "./lib/components/debug/DebugPanel.svelte";
   import Palette from "./lib/components/palette/Palette.svelte";
   import SettingsModal from "./lib/components/settings/SettingsModal.svelte";
   import RenameModal from "./lib/components/rename/RenameModal.svelte";
@@ -31,6 +32,7 @@
     History,
     CircleAlert,
     ListTree,
+    Bug,
   } from "@lucide/svelte";
   import { loadUserTemplates } from "./lib/config/loadTemplates";
   import { Autosave } from "./lib/application/autosave";
@@ -44,7 +46,9 @@
 
   let sidebarOpen = $state(true);
   let sidebarWidth = $state(240);
-  let sidebarView = $state<"files" | "search" | "scm" | "problems" | "outline">("files");
+  let sidebarView = $state<
+    "files" | "search" | "scm" | "problems" | "outline" | "debug"
+  >("files");
   let historyOpen = $state(false);
   let aiOpen = $state(false);
   let terminalOpen = $state(false);
@@ -134,6 +138,10 @@
         sidebarView = "outline";
         sidebarOpen = true;
       },
+      showDebug: () => {
+        sidebarView = "debug";
+        sidebarOpen = true;
+      },
       toggleZen: () => (zen = !zen),
     }),
   );
@@ -172,6 +180,17 @@
     if (e.key === "Escape" && zen) {
       e.preventDefault();
       zen = false;
+      return;
+    }
+    if (e.key === "F5" && !e.ctrlKey && !e.altKey) {
+      e.preventDefault();
+      if (e.shiftKey) {
+        void workspace.stopDebugging();
+      } else if (workspace.debug.state === "stopped") {
+        workspace.debug.continue();
+      } else if (!workspace.debug.active) {
+        void workspace.startDebugging();
+      }
       return;
     }
     if (!e.ctrlKey || e.altKey) return;
@@ -339,6 +358,14 @@
           >
             <ListTree size={15} />
           </button>
+          <button
+            class="side-tab"
+            class:active={sidebarView === "debug"}
+            title="Ladění"
+            onclick={() => (sidebarView = "debug")}
+          >
+            <Bug size={15} />
+          </button>
         </div>
         <div class="side-body">
           {#if sidebarView === "files"}
@@ -349,8 +376,10 @@
             <SourceControlPanel />
           {:else if sidebarView === "problems"}
             <ProblemsPanel />
-          {:else}
+          {:else if sidebarView === "outline"}
             <OutlinePanel />
+          {:else}
+            <DebugPanel />
           {/if}
         </div>
       </aside>

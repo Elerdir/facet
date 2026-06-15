@@ -8,6 +8,7 @@ import {
   FakeVcs,
   FakeFormatter,
   FakeLspTransport,
+  FakeDapTransport,
   FakeWatcher,
   FakeAi,
   FakeGithub,
@@ -21,6 +22,7 @@ function setup() {
   const vcs = new FakeVcs();
   const ai = new FakeAi();
   const github = new FakeGithub();
+  const dap = new FakeDapTransport();
   const ws = new Workspace(
     fs,
     dialog,
@@ -33,8 +35,9 @@ function setup() {
     watcher,
     null,
     github,
+    dap,
   );
-  return { fs, dialog, history, watcher, vcs, ai, github, ws };
+  return { fs, dialog, history, watcher, vcs, ai, github, dap, ws };
 }
 
 describe("Workspace open flow", () => {
@@ -227,6 +230,27 @@ describe("Workspace open flow", () => {
 
     await ws.initRepo();
     expect(vcs.inits).toEqual(["/proj"]);
+  });
+
+  it("toggles breakpoints for the active file", async () => {
+    const { fs, ws } = setup();
+    fs.files.set("/proj/app.py", "print(1)\nprint(2)\n");
+    await ws.openPath("/proj/app.py");
+    ws.toggleBreakpoint("/proj/app.py", 2);
+    expect(ws.breakpoints.linesFor("/proj/app.py")).toEqual([2]);
+    expect(ws.debugAdapterAvailable()).toBe(true);
+  });
+
+  it("starts a debug session for a supported file", async () => {
+    const { fs, ws, dap } = setup();
+    fs.files.set("/proj/app.py", "print(1)");
+    await ws.openPath("/proj/app.py");
+    ws.toggleBreakpoint("/proj/app.py", 1);
+    void ws.startDebugging();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(dap.started[0]?.command).toBe("python");
+    const init = dap.sentMessages().find((m) => m.command === "initialize");
+    expect(init).toBeDefined();
   });
 
   it("groups LSP diagnostics by file for the Problems panel", () => {
