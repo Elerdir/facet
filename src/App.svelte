@@ -10,6 +10,8 @@
   import CompareView from "./lib/components/compare/CompareView.svelte";
   import SourceControlPanel from "./lib/components/vcs/SourceControlPanel.svelte";
   import SearchPanel from "./lib/components/search/SearchPanel.svelte";
+  import ProblemsPanel from "./lib/components/problems/ProblemsPanel.svelte";
+  import OutlinePanel from "./lib/components/outline/OutlinePanel.svelte";
   import Palette from "./lib/components/palette/Palette.svelte";
   import SettingsModal from "./lib/components/settings/SettingsModal.svelte";
   import RenameModal from "./lib/components/rename/RenameModal.svelte";
@@ -21,7 +23,15 @@
   import ProjectEditModal from "./lib/components/ai/ProjectEditModal.svelte";
   import { allTemplates } from "./lib/domain/newFileTemplates";
   import { ENCODINGS } from "./lib/domain/encodings";
-  import { Files, GitBranch, Search, Bot, History } from "@lucide/svelte";
+  import {
+    Files,
+    GitBranch,
+    Search,
+    Bot,
+    History,
+    CircleAlert,
+    ListTree,
+  } from "@lucide/svelte";
   import { loadUserTemplates } from "./lib/config/loadTemplates";
   import { Autosave } from "./lib/application/autosave";
   import { coreCommands } from "./lib/application/commands";
@@ -34,7 +44,7 @@
 
   let sidebarOpen = $state(true);
   let sidebarWidth = $state(240);
-  let sidebarView = $state<"files" | "search" | "scm">("files");
+  let sidebarView = $state<"files" | "search" | "scm" | "problems" | "outline">("files");
   let historyOpen = $state(false);
   let aiOpen = $state(false);
   let terminalOpen = $state(false);
@@ -114,6 +124,14 @@
       },
       showScm: () => {
         sidebarView = "scm";
+        sidebarOpen = true;
+      },
+      showProblems: () => {
+        sidebarView = "problems";
+        sidebarOpen = true;
+      },
+      showOutline: () => {
+        sidebarView = "outline";
         sidebarOpen = true;
       },
       toggleZen: () => (zen = !zen),
@@ -305,14 +323,34 @@
           >
             <GitBranch size={15} />
           </button>
+          <button
+            class="side-tab"
+            class:active={sidebarView === "problems"}
+            title="Problémy"
+            onclick={() => (sidebarView = "problems")}
+          >
+            <CircleAlert size={15} />
+          </button>
+          <button
+            class="side-tab"
+            class:active={sidebarView === "outline"}
+            title="Osnova (symboly)"
+            onclick={() => (sidebarView = "outline")}
+          >
+            <ListTree size={15} />
+          </button>
         </div>
         <div class="side-body">
           {#if sidebarView === "files"}
             <FileExplorer />
           {:else if sidebarView === "search"}
             <SearchPanel />
-          {:else}
+          {:else if sidebarView === "scm"}
             <SourceControlPanel />
+          {:else if sidebarView === "problems"}
+            <ProblemsPanel />
+          {:else}
+            <OutlinePanel />
           {/if}
         </div>
       </aside>
@@ -372,7 +410,13 @@
     </div>
   {/if}
   {#if !zen}
-    <StatusBar onEncodingClick={() => (palette = "encoding")} />
+    <StatusBar
+      onEncodingClick={() => (palette = "encoding")}
+      onProblemsClick={() => {
+        sidebarView = "problems";
+        sidebarOpen = true;
+      }}
+    />
   {/if}
 </div>
 

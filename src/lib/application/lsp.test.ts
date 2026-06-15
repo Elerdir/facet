@@ -95,6 +95,36 @@ describe("LspManager", () => {
     expect(await def).toEqual({ uri: "file:///proj/b.ts", line: 3, character: 2 });
   });
 
+  it("parses document symbols (outline)", async () => {
+    const t = new FakeLspTransport();
+    const mgr = new LspManager(t);
+    const open = mgr.openDoc(spec, "/proj/a.ts", "typescript", "x", "/proj");
+    await initialized(t, open);
+
+    const syms = mgr.documentSymbols(spec, "/proj/a.ts");
+    await tick();
+    const req = t.sentMessages().find((m) => m.method === "textDocument/documentSymbol");
+    expect(req).toBeDefined();
+    t.deliver("ts", {
+      jsonrpc: "2.0",
+      id: req!.id,
+      result: [
+        {
+          name: "Foo",
+          kind: 5,
+          range: { start: { line: 1, character: 0 } },
+          children: [
+            { name: "bar", kind: 6, selectionRange: { start: { line: 3, character: 2 } } },
+          ],
+        },
+      ],
+    });
+
+    const result = await syms;
+    expect(result[0]).toMatchObject({ name: "Foo", kind: 5, line: 1 });
+    expect(result[0].children[0]).toMatchObject({ name: "bar", line: 3 });
+  });
+
   it("lists references from a Location[] response", async () => {
     const t = new FakeLspTransport();
     const mgr = new LspManager(t);
