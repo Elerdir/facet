@@ -1,27 +1,42 @@
 <script lang="ts">
-  import { Trash2, Send, Square, FileStack } from "@lucide/svelte";
+  import { Trash2, Send, Square, FileStack, AtSign } from "@lucide/svelte";
   import { getWorkspace } from "../../application/context";
+  import { relativeTo } from "../../domain/paths";
+  import Palette from "../palette/Palette.svelte";
   import type { FileContext } from "../../domain/ai";
 
   const ws = getWorkspace();
   let input = $state("");
   let scroller: HTMLDivElement | undefined = $state();
+  let mentionItems = $state<{ id: string; label: string }[] | null>(null);
 
   const activeBuffer = $derived.by(() => {
     const id = ws.layout.activeTabId;
     return id ? (ws.buffers.get(id) ?? null) : null;
   });
 
-  function contextForSend(): FileContext | null {
-    if (!ws.ai.includeFileContext) return null;
-    const buf = activeBuffer;
-    return buf && !buf.binary ? { name: buf.name, content: buf.content } : null;
-  }
-
-  function send() {
+  async function send() {
     const text = input;
     input = "";
-    void ws.ai.send(text, contextForSend());
+    const contexts: FileContext[] = [];
+    const buf = activeBuffer;
+    if (ws.ai.includeFileContext && buf && !buf.binary) {
+      contexts.push({ name: buf.name, content: buf.content });
+    }
+    contexts.push(...(await ws.resolveMentions(text)));
+    void ws.ai.send(text, contexts);
+  }
+
+  async function openMentionPicker() {
+    const root = ws.explorer.rootPath;
+    const files = await ws.listProjectFiles();
+    mentionItems = files.map((p) => ({ id: root ? relativeTo(root, p) : p, label: root ? relativeTo(root, p) : p }));
+  }
+
+  function insertMention(rel: string) {
+    const sep = input === "" || input.endsWith(" ") ? "" : " ";
+    input = `${input}${sep}@${rel} `;
+    mentionItems = null;
   }
 
   function onKey(e: KeyboardEvent) {
@@ -41,6 +56,9 @@
 <div class="chat">
   <div class="header">
     <span class="title">AI chat</span>
+    <button class="icon" title="Přidat soubor do kontextu (@)" onclick={openMentionPicker}>
+      <AtSign size={14} />
+    </button>
     <button
       class="icon"
       title="Upravit napříč soubory…"
@@ -56,7 +74,8 @@
   <div class="msgs" bind:this={scroller}>
     {#if ws.ai.messages.length === 0}
       <div class="empty">
-        Zeptej se na cokoli — s kontextem aktivního souboru.
+        Zeptej se na cokoli — s kontextem aktivního souboru. Další soubory přidáš
+        zmínkou <code>@cesta/soubor</code> nebo tlačítkem @.
         {#if !ws.ai.configured}
           <div class="warn">Nejdřív nastav Claude API klíč v Nastavení (Ctrl+,).</div>
         {/if}
@@ -81,7 +100,7 @@
   <div class="inputrow">
     <textarea
       rows="2"
-      placeholder="Napiš zprávu… (Enter odešle)"
+      placeholder="Napiš zprávu… (Enter odešle, @soubor přidá kontext)"
       bind:value={input}
       onkeydown={onKey}
     ></textarea>
@@ -96,6 +115,15 @@
     {/if}
   </div>
 </div>
+
+{#if mentionItems}
+  <Palette
+    placeholder="Přidat soubor do kontextu…"
+    items={mentionItems}
+    onPick={insertMention}
+    onClose={() => (mentionItems = null)}
+  />
+{/if}
 
 <style>
   .chat {

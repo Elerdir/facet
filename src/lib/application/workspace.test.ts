@@ -229,6 +229,28 @@ describe("Workspace open flow", () => {
     expect(vcs.inits).toEqual(["/proj"]);
   });
 
+  it("resolves @mentions to file contexts from disk and open buffers", async () => {
+    const { fs, ws } = setup();
+    fs.files.set("/proj/src/a.ts", "obsah A");
+    fs.files.set("/proj/b.ts", "obsah B");
+    fs.dirs.set("/proj", []);
+    // open one file so it's served from the buffer (with any unsaved edits)
+    await ws.explorer.openFolder("/proj");
+    await ws.openPath("/proj/b.ts");
+    ws.setContent(ws.layout.activeTabId!, "upravené B");
+
+    const contexts = await ws.resolveMentions("oprav @src/a.ts a @b.ts");
+    expect(contexts.find((c) => c.name === "src/a.ts")?.content).toBe("obsah A");
+    expect(contexts.find((c) => c.name === "b.ts")?.content).toBe("upravené B");
+  });
+
+  it("skips @mentions that do not resolve to a file", async () => {
+    const { fs, ws } = setup();
+    fs.dirs.set("/proj", []);
+    await ws.explorer.openFolder("/proj");
+    expect(await ws.resolveMentions("co @neexistuje.ts")).toEqual([]);
+  });
+
   it("runs a multi-file AI edit and applies accepted changes to buffers", async () => {
     const { fs, ws, ai } = setup();
     ws.settings.current = { ...ws.settings.current, aiApiKey: "sk-test" };

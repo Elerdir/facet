@@ -15,8 +15,9 @@ import { HunkStageUiStore } from "./hunkUi.svelte";
 import { CloneUiStore } from "./cloneUi.svelte";
 import { InlineEditStore, type InlineEditTarget } from "./inlineEdit.svelte";
 import { ProjectEditStore } from "./projectEdit.svelte";
-import { stripCodeFences, type ProjectFile } from "../domain/ai";
+import { stripCodeFences, type ProjectFile, type FileContext } from "../domain/ai";
 import { parseSearchReplaceBlocks, applyFileEdits } from "../domain/multiEdit";
+import { extractMentions } from "../domain/mentions";
 import {
   parseUnifiedDiff,
   buildPatch,
@@ -442,6 +443,32 @@ export class Workspace {
     }
     if (content !== null) this.setContent(buf.id, content);
     ie.close();
+  }
+
+  /** Resolve `@path` mentions in a chat message to file contexts (open or on disk). */
+  async resolveMentions(text: string): Promise<FileContext[]> {
+    const root = this.explorer.rootPath;
+    const out: FileContext[] = [];
+    for (const mention of extractMentions(text)) {
+      // Prefer an already-open buffer (cheap, reflects unsaved edits).
+      const open = this.buffers.items.find(
+        (b) =>
+          b.path !== null &&
+          !b.binary &&
+          ((root && relativeTo(root, b.path) === mention) || b.name === mention),
+      );
+      if (open) {
+        out.push({ name: mention, content: open.content });
+        continue;
+      }
+      const path = root ? normalize(`${root}/${mention}`) : mention;
+      try {
+        out.push({ name: mention, content: await this.#fs.readTextFile(path) });
+      } catch {
+        // unknown file — skip silently
+      }
+    }
+    return out;
   }
 
   /** Ask the AI about the current selection (or the whole active file). */

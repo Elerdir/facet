@@ -27,7 +27,7 @@ describe("AiChatStore", () => {
 
   it("embeds the file context into the system prompt", async () => {
     const { port, store } = setup();
-    await store.send("Co dělá ten kód?", { name: "main.rs", content: "fn main() {}" });
+    await store.send("Co dělá ten kód?", [{ name: "main.rs", content: "fn main() {}" }]);
     expect(port.requests[0].system).toContain("main.rs");
     expect(port.requests[0].system).toContain("fn main() {}");
   });

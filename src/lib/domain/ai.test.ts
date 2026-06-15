@@ -53,13 +53,17 @@ describe("prompt builders", () => {
   });
 
   it("builds a bare system prompt without context", () => {
-    expect(buildSystemPrompt(null)).not.toContain("otevřený soubor");
+    expect(buildSystemPrompt([])).not.toContain("Kontext:");
   });
 
-  it("embeds the active file into the system prompt", () => {
-    const out = buildSystemPrompt({ name: "main.rs", content: "fn main() {}" });
+  it("embeds context files into the system prompt", () => {
+    const out = buildSystemPrompt([
+      { name: "main.rs", content: "fn main() {}" },
+      { name: "lib.rs", content: "pub fn x() {}" },
+    ]);
     expect(out).toContain("main.rs");
     expect(out).toContain("fn main() {}");
+    expect(out).toContain("lib.rs");
   });
 
   it("builds selection prompts per action", () => {
