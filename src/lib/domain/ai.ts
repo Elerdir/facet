@@ -123,6 +123,26 @@ export function stripCodeFences(text: string): string {
   return m ? m[1] : text;
 }
 
+export const MULTI_EDIT_SYSTEM =
+  "Jsi AI, která upravuje kód napříč soubory. Dostaneš obsah otevřených souborů " +
+  "a požadavek. Vrať POUZE úpravy ve formátu bloků (žádné jiné ``` bloky):\n\n" +
+  "cesta/k/souboru\n<<<<<<< SEARCH\n přesný stávající úsek\n=======\n nový úsek\n>>>>>>> REPLACE\n\n" +
+  "Pravidla: cesta na samostatném řádku přesně jako v zadání; SEARCH musí být " +
+  "DOSLOVNÝ existující text z daného souboru (klidně víc řádků); uprav jen to nutné; " +
+  "víc bloků i víc souborů je v pořádku. Před bloky smíš stručně shrnout záměr.";
+
+export interface ProjectFile {
+  name: string;
+  content: string;
+}
+
+export function buildProjectEditPrompt(instruction: string, files: ProjectFile[]): string {
+  const ctx = files
+    .map((f) => `=== ${f.name} ===\n${truncateContext(f.content)}`)
+    .join("\n\n");
+  return `Otevřené soubory:\n\n${ctx}\n\nPožadavek: ${instruction}`;
+}
+
 export function buildCommitPrompt(diff: string): string {
   return (
     "Napiš commit zprávu pro následující staged diff. První řádek je shrnutí " +

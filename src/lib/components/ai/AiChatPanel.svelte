@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Trash2, Send, Square } from "@lucide/svelte";
+  import { Trash2, Send, Square, FileStack } from "@lucide/svelte";
   import { getWorkspace } from "../../application/context";
   import type { FileContext } from "../../domain/ai";
 
@@ -41,6 +41,13 @@
 <div class="chat">
   <div class="header">
     <span class="title">AI chat</span>
+    <button
+      class="icon"
+      title="Upravit napříč soubory…"
+      onclick={() => ws.projectEditUi.show()}
+    >
+      <FileStack size={14} />
+    </button>
     <button class="icon" title="Vyčistit konverzaci" onclick={() => ws.ai.clear()}>
       <Trash2 size={14} />
     </button>

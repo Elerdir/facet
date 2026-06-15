@@ -1,10 +1,13 @@
 import {
   buildSystemPrompt,
   buildInlineEditPrompt,
+  buildProjectEditPrompt,
   INLINE_EDIT_SYSTEM,
+  MULTI_EDIT_SYSTEM,
   type AiMessage,
   type AiModelInfo,
   type FileContext,
+  type ProjectFile,
 } from "../domain/ai";
 import type { AiPort } from "../ports/ai";
 import type { SettingsStore } from "./settings.svelte";
@@ -110,6 +113,27 @@ export class AiChatStore {
         model: cfg.aiModel,
         system: INLINE_EDIT_SYSTEM,
         messages: [{ role: "user", content: buildInlineEditPrompt(instruction, code, fileName) }],
+      },
+      onDelta,
+    );
+  }
+
+  /** Stream a multi-file edit; returns the raw SEARCH/REPLACE output. */
+  async projectEdit(
+    instruction: string,
+    files: ProjectFile[],
+    onDelta: (text: string) => void,
+  ): Promise<string> {
+    const cfg = this.#settings.current;
+    if (!cfg.aiApiKey.trim()) {
+      throw new Error("Chybí API klíč — nastav ho v Nastavení (Ctrl+,).");
+    }
+    return this.#port.stream(
+      {
+        apiKey: cfg.aiApiKey,
+        model: cfg.aiModel,
+        system: MULTI_EDIT_SYSTEM,
+        messages: [{ role: "user", content: buildProjectEditPrompt(instruction, files) }],
       },
       onDelta,
     );

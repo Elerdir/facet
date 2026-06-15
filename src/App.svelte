@@ -18,6 +18,7 @@
   import ContextMenu, { type MenuItem } from "./lib/components/ContextMenu.svelte";
   import AiChatPanel from "./lib/components/ai/AiChatPanel.svelte";
   import InlineEditPanel from "./lib/components/ai/InlineEditPanel.svelte";
+  import ProjectEditModal from "./lib/components/ai/ProjectEditModal.svelte";
   import { allTemplates } from "./lib/domain/newFileTemplates";
   import { ENCODINGS } from "./lib/domain/encodings";
   import { Files, GitBranch, Search, Bot, History } from "@lucide/svelte";
@@ -436,6 +437,10 @@
 
 {#if workspace.inlineEdit.target}
   <InlineEditPanel />
+{/if}
+
+{#if workspace.projectEditUi.open}
+  <ProjectEditModal />
 {/if}
 
 {#if ctxMenu}
