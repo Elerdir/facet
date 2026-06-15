@@ -229,6 +229,60 @@ describe("Workspace open flow", () => {
     expect(vcs.inits).toEqual(["/proj"]);
   });
 
+  it("runs an inline AI edit and applies the generated replacement", async () => {
+    const { fs, ws, ai } = setup();
+    ws.settings.current = { ...ws.settings.current, aiApiKey: "sk-test" };
+    fs.files.set("/a.ts", "const x = 1;\nconst y = 2;\n");
+    await ws.openPath("/a.ts");
+    const id = ws.layout.activeTabId!;
+
+    // Target the first line.
+    ws.startInlineEdit({
+      bufferId: id,
+      from: 0,
+      to: 11,
+      original: "const x = 1;",
+      fileName: "a.ts",
+    });
+    ws.inlineEdit.instruction = "udělej z toho let";
+    ai.deltas = ["let x = 1;"];
+    await ws.runInlineEdit();
+
+    expect(ws.inlineEdit.status).toBe("review");
+    expect(ws.inlineEdit.generated).toBe("let x = 1;");
+
+    ws.acceptInlineEdit();
+    expect(ws.buffers.get(id)!.content).toBe("let x = 1;\nconst y = 2;\n");
+    expect(ws.inlineEdit.target).toBeNull();
+  });
+
+  it("strips code fences from the inline edit before applying", async () => {
+    const { fs, ws, ai } = setup();
+    ws.settings.current = { ...ws.settings.current, aiApiKey: "sk-test" };
+    fs.files.set("/a.ts", "old();\n");
+    await ws.openPath("/a.ts");
+    const id = ws.layout.activeTabId!;
+
+    ws.startInlineEdit({ bufferId: id, from: 0, to: 6, original: "old();", fileName: "a.ts" });
+    ws.inlineEdit.instruction = "rename";
+    ai.deltas = ["```ts\n", "neo();", "\n```"];
+    await ws.runInlineEdit();
+    ws.acceptInlineEdit();
+
+    expect(ws.buffers.get(id)!.content).toBe("neo();\n");
+  });
+
+  it("inline edit reports an error when generation fails", async () => {
+    const { ws, ai } = setup();
+    ws.settings.current = { ...ws.settings.current, aiApiKey: "sk-test" };
+    ws.startInlineEdit({ bufferId: "x", from: 0, to: 0, original: "", fileName: "a.ts" });
+    ws.inlineEdit.instruction = "do it";
+    ai.failWith = "rate limited";
+    await ws.runInlineEdit();
+    expect(ws.inlineEdit.status).toBe("error");
+    expect(ws.inlineEdit.error).toContain("rate limited");
+  });
+
   it("parses unstaged hunks and stages selected ones via a patch", async () => {
     const { vcs, ws } = setup();
     await ws.vcs.refresh("/repo");

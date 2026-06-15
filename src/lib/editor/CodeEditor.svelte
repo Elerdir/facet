@@ -34,6 +34,7 @@
     onGotoDefinition,
     onFindReferences,
     onRenameRequest,
+    onInlineEdit,
     onCursor,
     onRevealConsumed,
   }: {
@@ -53,11 +54,14 @@
     onGotoDefinition?: (line: number, character: number) => void;
     onFindReferences?: (line: number, character: number) => void;
     onRenameRequest?: (line: number, character: number) => void;
+    onInlineEdit?: (sel: { from: number; to: number; text: string }) => void;
     onCursor?: (info: {
       line: number;
       col: number;
       selection: number;
       text: string;
+      from: number;
+      to: number;
     }) => void;
     onRevealConsumed?: () => void;
   } = $props();
@@ -178,6 +182,25 @@
         ...(onGotoDefinition || onFindReferences || onRenameRequest
           ? lspNavExtensions()
           : []),
+        ...(onInlineEdit
+          ? [
+              keymap.of([
+                {
+                  key: "Mod-k",
+                  run: (v) => {
+                    let { from, to } = v.state.selection.main;
+                    if (from === to) {
+                      const ln = v.state.doc.lineAt(from);
+                      from = ln.from;
+                      to = ln.to;
+                    }
+                    onInlineEdit({ from, to, text: v.state.sliceDoc(from, to) });
+                    return true;
+                  },
+                },
+              ]),
+            ]
+          : []),
         EditorView.updateListener.of((u) => {
           if (u.docChanged) {
             const text = u.state.doc.toString();
@@ -195,6 +218,8 @@
                 sel.to > sel.from
                   ? u.state.sliceDoc(sel.from, Math.min(sel.to, sel.from + 24_000))
                   : "",
+              from: sel.from,
+              to: sel.to,
             });
           }
         }),

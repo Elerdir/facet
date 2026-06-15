@@ -104,6 +104,25 @@ export function buildSelectionPrompt(
   return `${instruction}\n\nSoubor: ${fileName}\n\`\`\`\n${truncateContext(code)}\n\`\`\``;
 }
 
+export const INLINE_EDIT_SYSTEM =
+  "Jsi inline editor kódu. Dostaneš úsek kódu a instrukci. Vrať POUZE upravenou " +
+  "verzi toho úseku, která ho má nahradit — žádné vysvětlení, žádné komentáře navíc, " +
+  "žádné ``` bloky. Zachovej odsazení, styl a jazyk okolního kódu.";
+
+export function buildInlineEditPrompt(
+  instruction: string,
+  code: string,
+  fileName: string,
+): string {
+  return `Soubor: ${fileName}\nInstrukce: ${instruction}\n\nÚsek k úpravě:\n${truncateContext(code)}`;
+}
+
+/** Strip a single wrapping ``` code fence the model may add despite instructions. */
+export function stripCodeFences(text: string): string {
+  const m = text.match(/^\s*```[^\n]*\n([\s\S]*?)\n?```\s*$/);
+  return m ? m[1] : text;
+}
+
 export function buildCommitPrompt(diff: string): string {
   return (
     "Napiš commit zprávu pro následující staged diff. První řádek je shrnutí " +

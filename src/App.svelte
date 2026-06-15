@@ -17,6 +17,7 @@
   import CloneModal from "./lib/components/vcs/CloneModal.svelte";
   import ContextMenu, { type MenuItem } from "./lib/components/ContextMenu.svelte";
   import AiChatPanel from "./lib/components/ai/AiChatPanel.svelte";
+  import InlineEditPanel from "./lib/components/ai/InlineEditPanel.svelte";
   import { allTemplates } from "./lib/domain/newFileTemplates";
   import { ENCODINGS } from "./lib/domain/encodings";
   import { Files, GitBranch, Search, Bot, History } from "@lucide/svelte";
@@ -51,6 +52,12 @@
         label: "Organizovat importy",
         disabled: !text,
         action: () => workspace.formatActive("organizeImports"),
+      },
+      { separator: true },
+      {
+        label: "AI: Upravit výběr (Ctrl+K)",
+        disabled: !text,
+        action: () => workspace.startInlineEditFromStatus(),
       },
       { separator: true },
       { header: true, label: "Převést kódování" },
@@ -425,6 +432,10 @@
 
 {#if workspace.cloneUi.open}
   <CloneModal />
+{/if}
+
+{#if workspace.inlineEdit.target}
+  <InlineEditPanel />
 {/if}
 
 {#if ctxMenu}

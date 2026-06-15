@@ -52,6 +52,12 @@ export function coreCommands(ws: Workspace, ui: UiActions): Command[] {
     { id: "fmt.code", title: "Formát: Kód (výběr)", run: () => ws.textFormat.apply("code") },
     { id: "ai.chat", title: "AI: Otevřít chat", hint: "Ctrl+I", run: ui.showAi },
     {
+      id: "ai.inlineEdit",
+      title: "AI: Upravit výběr (inline)",
+      hint: "Ctrl+K",
+      run: () => ws.startInlineEditFromStatus(),
+    },
+    {
       id: "ai.explain",
       title: "AI: Vysvětli výběr / soubor",
       run: () => {
