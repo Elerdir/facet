@@ -82,12 +82,15 @@ export interface FileContext {
   content: string;
 }
 
-export function buildSystemPrompt(context: FileContext | null): string {
+export function buildSystemPrompt(contexts: FileContext[]): string {
   const base =
     "Jsi AI asistent v editoru kódu Facet. Odpovídej česky, stručně a věcně. " +
     "Kód piš do bloků ``` a u úprav vysvětli jen to podstatné.";
-  if (!context) return base;
-  return `${base}\n\nUživatel má otevřený soubor ${context.name}:\n\`\`\`\n${truncateContext(context.content)}\n\`\`\``;
+  if (contexts.length === 0) return base;
+  const files = contexts
+    .map((c) => `Soubor ${c.name}:\n\`\`\`\n${truncateContext(c.content)}\n\`\`\``)
+    .join("\n\n");
+  return `${base}\n\nKontext:\n\n${files}`;
 }
 
 export type SelectionAction = "explain" | "refactor";

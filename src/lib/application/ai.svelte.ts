@@ -44,7 +44,7 @@ export class AiChatStore {
     return this.#port.listModels(key);
   }
 
-  async send(text: string, context: FileContext | null = null): Promise<void> {
+  async send(text: string, contexts: FileContext[] = []): Promise<void> {
     const prompt = text.trim();
     if (!prompt || this.streaming) return;
     const cfg = this.#settings.current;
@@ -66,7 +66,7 @@ export class AiChatStore {
         {
           apiKey: cfg.aiApiKey,
           model: cfg.aiModel,
-          system: buildSystemPrompt(context),
+          system: buildSystemPrompt(contexts),
           messages: [...history, { role: "user", content: prompt }],
         },
         (delta) => {
