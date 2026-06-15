@@ -18,6 +18,8 @@ import { ProjectEditStore } from "./projectEdit.svelte";
 import { stripCodeFences, type ProjectFile, type FileContext } from "../domain/ai";
 import { parseSearchReplaceBlocks, applyFileEdits } from "../domain/multiEdit";
 import { extractMentions } from "../domain/mentions";
+import { CodebaseIndexStore } from "./codebaseIndex.svelte";
+import { chunkFile, buildIndex, bm25Search } from "../domain/retrieval";
 import {
   parseUnifiedDiff,
   buildPatch,
@@ -80,6 +82,7 @@ export class Workspace {
   readonly inlineEdit = new InlineEditStore();
   readonly projectEditUi = new ProjectEditStore();
   #projectEditKeyToBuffer = new Map<string, string>();
+  readonly codebase = new CodebaseIndexStore();
 
   #fs: FileSystemPort;
   #dialog: DialogPort;
@@ -445,11 +448,50 @@ export class Workspace {
     ie.close();
   }
 
+  /** Build (or rebuild) the local BM25 codebase index for the open folder. */
+  async ensureCodebaseIndex(force = false): Promise<void> {
+    const root = this.explorer.rootPath;
+    if (!root) {
+      this.codebase.status = "error";
+      this.codebase.error = "Není otevřená žádná složka.";
+      return;
+    }
+    if (this.codebase.status === "ready" && this.codebase.root === root && !force) return;
+
+    this.codebase.status = "building";
+    this.codebase.error = null;
+    try {
+      const files = await this.#fs.readProjectFiles(root, 4000, 200_000);
+      const chunks = files.flatMap((f) => chunkFile(f.path, f.content));
+      this.codebase.index = buildIndex(chunks);
+      this.codebase.fileCount = files.length;
+      this.codebase.root = root;
+      this.codebase.status = "ready";
+    } catch (e) {
+      this.codebase.status = "error";
+      this.codebase.error = e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  /** Retrieve the most relevant code chunks for a query (local RAG). */
+  async searchCodebase(query: string, topK = 6): Promise<FileContext[]> {
+    await this.ensureCodebaseIndex();
+    if (!this.codebase.index) return [];
+    return bm25Search(this.codebase.index, query, topK).map((r) => ({
+      name: `${r.chunk.path}:${r.chunk.startLine}`,
+      content: r.chunk.text,
+    }));
+  }
+
   /** Resolve `@path` mentions in a chat message to file contexts (open or on disk). */
   async resolveMentions(text: string): Promise<FileContext[]> {
     const root = this.explorer.rootPath;
     const out: FileContext[] = [];
     for (const mention of extractMentions(text)) {
+      if (mention.toLowerCase() === "codebase") {
+        out.push(...(await this.searchCodebase(text)));
+        continue;
+      }
       // Prefer an already-open buffer (cheap, reflects unsaved edits).
       const open = this.buffers.items.find(
         (b) =>

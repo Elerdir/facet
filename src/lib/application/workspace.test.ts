@@ -229,6 +229,21 @@ describe("Workspace open flow", () => {
     expect(vcs.inits).toEqual(["/proj"]);
   });
 
+  it("builds a codebase index and retrieves relevant chunks for @codebase", async () => {
+    const { fs, ws } = setup();
+    fs.files.set("/proj/auth.ts", "function login(user) { return validatePassword(user); }");
+    fs.files.set("/proj/math.ts", "function add(a, b) { return a + b; }");
+    fs.dirs.set("/proj", []);
+    await ws.explorer.openFolder("/proj");
+
+    const contexts = await ws.resolveMentions("jak funguje @codebase login a validate password");
+    expect(ws.codebase.status).toBe("ready");
+    expect(ws.codebase.fileCount).toBe(2);
+    expect(contexts.length).toBeGreaterThan(0);
+    expect(contexts[0].name.startsWith("auth.ts")).toBe(true);
+    expect(contexts[0].content).toContain("validatePassword");
+  });
+
   it("resolves @mentions to file contexts from disk and open buffers", async () => {
     const { fs, ws } = setup();
     fs.files.set("/proj/src/a.ts", "obsah A");

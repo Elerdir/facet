@@ -63,6 +63,11 @@ export function coreCommands(ws: Workspace, ui: UiActions): Command[] {
       run: () => ws.projectEditUi.show(),
     },
     {
+      id: "ai.reindex",
+      title: "AI: Přeindexovat projekt (@codebase)",
+      run: () => void ws.ensureCodebaseIndex(true),
+    },
+    {
       id: "ai.explain",
       title: "AI: Vysvětli výběr / soubor",
       run: () => {

@@ -41,6 +41,20 @@ export class FakeFileSystem implements FileSystemPort {
     return content;
   }
 
+  /** Returns all files under root with paths made relative to it. */
+  async readProjectFiles(
+    root: string,
+    _maxFiles: number,
+    _maxBytes: number,
+  ): Promise<{ path: string; content: string }[]> {
+    const prefix = root.replace(/[\\/]+$/, "") + "/";
+    const out: { path: string; content: string }[] = [];
+    for (const [p, content] of this.files) {
+      if (p.startsWith(prefix)) out.push({ path: p.slice(prefix.length), content });
+    }
+    return out;
+  }
+
   async writeTextFile(path: string, contents: string, encoding?: string): Promise<void> {
     this.files.set(path, contents);
     this.writtenEncodings.set(path, encoding);
