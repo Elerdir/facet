@@ -9,6 +9,7 @@ import {
   buildSelectionPrompt,
   buildCommitPrompt,
   buildInlineEditPrompt,
+  buildGhostPrompt,
   stripCodeFences,
   MAX_CONTEXT_CHARS,
 } from "./ai";
@@ -82,6 +83,14 @@ describe("prompt builders", () => {
     const out = buildInlineEditPrompt("přidej typ", "let x", "a.ts");
     expect(out).toContain("přidej typ");
     expect(out).toContain("let x");
+    expect(out).toContain("a.ts");
+  });
+
+  it("builds a ghost-completion prompt with prefix, suffix and file", () => {
+    const out = buildGhostPrompt("const x =", " // tail", "a.ts");
+    expect(out).toContain("PREFIX:");
+    expect(out).toContain("const x =");
+    expect(out).toContain("SUFFIX:");
     expect(out).toContain("a.ts");
   });
 

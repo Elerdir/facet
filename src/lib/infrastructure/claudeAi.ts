@@ -34,7 +34,7 @@ export class ClaudeAi implements AiPort {
       {
         model: request.model,
         // Editor-sized answers; deliberate cost cap rather than the 64K ceiling.
-        max_tokens: 8192,
+        max_tokens: request.maxTokens ?? 8192,
         ...(request.system ? { system: request.system } : {}),
         ...(modelSupportsAdaptive(request.model)
           ? { thinking: { type: "adaptive" as const } }

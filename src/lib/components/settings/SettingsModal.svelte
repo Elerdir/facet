@@ -440,6 +440,19 @@
               </select>
             {/if}
           </label>
+
+          <label class="row">
+            <input
+              type="checkbox"
+              checked={s.aiGhostCompletion}
+              onchange={(e) => ws.settings.update({ aiGhostCompletion: e.currentTarget.checked })}
+            />
+            <span>Prediktivní doplňování (ghost text, Tab přijme)</span>
+          </label>
+          <div class="note">
+            Pozn.: každá pauza v psaní pošle dotaz do API (platí se za tokeny).
+            Pro rychlost a cenu doporučuji zvolit model Haiku.
+          </div>
         {/if}
 
         <div class="note">

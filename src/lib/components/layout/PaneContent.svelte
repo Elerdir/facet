@@ -83,6 +83,11 @@
               if (buffer?.path) ws.renameUi.open({ path: buffer.path, line, character: ch });
             }
           : undefined}
+        ghostComplete={ws.settings.current.aiGhostCompletion &&
+        ws.settings.current.aiApiKey.trim() !== ""
+          ? (params, signal) =>
+              ws.ai.ghostComplete(params.prefix, params.suffix, params.fileName, signal)
+          : undefined}
         onInlineEdit={(sel) => {
           if (buffer && !buffer.binary) {
             ws.startInlineEdit({
