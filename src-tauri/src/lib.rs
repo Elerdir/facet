@@ -36,6 +36,7 @@ pub fn run() {
             commands::read_dir,
             commands::run_command_stdio,
             commands::list_files,
+            commands::read_project_files,
             commands::search_in_files,
             diff::diff_files,
             history::history_append,

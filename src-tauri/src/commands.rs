@@ -174,6 +174,59 @@ pub fn list_files(root: String, limit: usize) -> Result<Vec<String>, String> {
     Ok(out)
 }
 
+/// A project file's text content (for codebase indexing).
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectFileContent {
+    path: String,
+    content: String,
+}
+
+/// Read text files under `root` (respects .gitignore, skips binaries), capped
+/// at `max_files` and `max_bytes` per file. Paths are relative to `root`.
+#[tauri::command]
+pub fn read_project_files(
+    root: String,
+    max_files: usize,
+    max_bytes: usize,
+) -> Result<Vec<ProjectFileContent>, String> {
+    let mut out = Vec::new();
+    for entry in WalkBuilder::new(&root).require_git(false).build() {
+        if out.len() >= max_files {
+            break;
+        }
+        let entry = match entry {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        if !entry.file_type().map(|t| t.is_file()).unwrap_or(false) {
+            continue;
+        }
+        let path = entry.path();
+        match path.metadata() {
+            Ok(m) if (m.len() as usize) <= max_bytes => {}
+            _ => continue,
+        }
+        let bytes = match fs::read(path) {
+            Ok(b) => b,
+            Err(_) => continue,
+        };
+        if detect::is_binary(&bytes) {
+            continue;
+        }
+        let rel = path
+            .strip_prefix(&root)
+            .unwrap_or(path)
+            .to_string_lossy()
+            .replace('\\', "/");
+        out.push(ProjectFileContent {
+            path: rel,
+            content: String::from_utf8_lossy(&bytes).into_owned(),
+        });
+    }
+    Ok(out)
+}
+
 /// One matching line from a project-wide search.
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -240,6 +293,22 @@ pub fn search_in_files(
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn read_project_files_skips_binary_and_large_files() {
+        let dir = tempdir().unwrap();
+        fs::write(dir.path().join("a.ts"), "const x = 1;").unwrap();
+        fs::write(dir.path().join("big.txt"), "x".repeat(5000)).unwrap();
+        fs::write(dir.path().join("c.bin"), [0u8, 1, 2, 3]).unwrap();
+
+        let files =
+            read_project_files(dir.path().to_string_lossy().into(), 100, 1000).unwrap();
+        let paths: Vec<&str> = files.iter().map(|f| f.path.as_str()).collect();
+        assert!(paths.contains(&"a.ts"));
+        assert!(!paths.contains(&"big.txt")); // too large
+        assert!(!paths.contains(&"c.bin")); // binary
+        assert_eq!(files.iter().find(|f| f.path == "a.ts").unwrap().content, "const x = 1;");
+    }
 
     #[test]
     fn run_command_stdio_errors_on_missing_program() {

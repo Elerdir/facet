@@ -30,7 +30,13 @@
   async function openMentionPicker() {
     const root = ws.explorer.rootPath;
     const files = await ws.listProjectFiles();
-    mentionItems = files.map((p) => ({ id: root ? relativeTo(root, p) : p, label: root ? relativeTo(root, p) : p }));
+    mentionItems = [
+      { id: "codebase", label: "@codebase — prohledat celý projekt (RAG)" },
+      ...files.map((p) => {
+        const rel = root ? relativeTo(root, p) : p;
+        return { id: rel, label: rel };
+      }),
+    ];
   }
 
   function insertMention(rel: string) {
@@ -75,7 +81,8 @@
     {#if ws.ai.messages.length === 0}
       <div class="empty">
         Zeptej se na cokoli — s kontextem aktivního souboru. Další soubory přidáš
-        zmínkou <code>@cesta/soubor</code> nebo tlačítkem @.
+        zmínkou <code>@cesta/soubor</code>, celý projekt přes <code>@codebase</code>
+        (lokální vyhledávání), nebo tlačítkem @.
         {#if !ws.ai.configured}
           <div class="warn">Nejdřív nastav Claude API klíč v Nastavení (Ctrl+,).</div>
         {/if}
