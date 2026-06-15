@@ -125,7 +125,7 @@ export class DebugManager {
 
   pause(): void {
     if (this.stoppedThreadId === null && this.threads[0]) {
-      void this.#request("pause", { threadId: this.threads[0].id });
+      this.#request("pause", { threadId: this.threads[0].id }).catch(() => {});
     }
   }
 
@@ -160,7 +160,7 @@ export class DebugManager {
     const threadId = this.stoppedThreadId;
     this.state = "running";
     this.currentLocation = null;
-    void this.#request(command, { threadId });
+    this.#request(command, { threadId }).catch(() => {});
   }
 
   #request(command: string, args: unknown): Promise<unknown> {
