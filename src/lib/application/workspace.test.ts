@@ -229,6 +229,41 @@ describe("Workspace open flow", () => {
     expect(vcs.inits).toEqual(["/proj"]);
   });
 
+  it("runs a multi-file AI edit and applies accepted changes to buffers", async () => {
+    const { fs, ws, ai } = setup();
+    ws.settings.current = { ...ws.settings.current, aiApiKey: "sk-test" };
+    fs.files.set("/a.ts", "const x = 1;\n");
+    fs.files.set("/b.ts", "foo();\n");
+    await ws.openPath("/a.ts");
+    await ws.openPath("/b.ts");
+    const aId = ws.buffers.items.find((b) => b.path === "/a.ts")!.id;
+    const bId = ws.buffers.items.find((b) => b.path === "/b.ts")!.id;
+
+    ws.projectEditUi.instruction = "změň hodnoty";
+    ai.deltas = [
+      "a.ts\n<<<<<<< SEARCH\nconst x = 1;\n=======\nconst x = 2;\n>>>>>>> REPLACE\n" +
+        "b.ts\n<<<<<<< SEARCH\nfoo();\n=======\nbar();\n>>>>>>> REPLACE\n",
+    ];
+    await ws.runProjectEdit();
+
+    expect(ws.projectEditUi.status).toBe("review");
+    expect(ws.projectEditUi.results.filter((r) => r.ok)).toHaveLength(2);
+
+    ws.acceptProjectEdit();
+    expect(ws.buffers.get(aId)!.content).toBe("const x = 2;\n");
+    expect(ws.buffers.get(bId)!.content).toBe("bar();\n");
+    expect(ws.projectEditUi.open).toBe(false);
+  });
+
+  it("multi-file edit errors when no text buffers are open as context", async () => {
+    const { ws } = setup();
+    ws.settings.current = { ...ws.settings.current, aiApiKey: "sk-test" };
+    ws.projectEditUi.instruction = "cokoli";
+    await ws.runProjectEdit();
+    expect(ws.projectEditUi.status).toBe("error");
+    expect(ws.projectEditUi.error).toContain("kontext");
+  });
+
   it("runs an inline AI edit and applies the generated replacement", async () => {
     const { fs, ws, ai } = setup();
     ws.settings.current = { ...ws.settings.current, aiApiKey: "sk-test" };

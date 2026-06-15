@@ -58,6 +58,11 @@ export function coreCommands(ws: Workspace, ui: UiActions): Command[] {
       run: () => ws.startInlineEditFromStatus(),
     },
     {
+      id: "ai.projectEdit",
+      title: "AI: Upravit napříč soubory…",
+      run: () => ws.projectEditUi.show(),
+    },
+    {
       id: "ai.explain",
       title: "AI: Vysvětli výběr / soubor",
       run: () => {

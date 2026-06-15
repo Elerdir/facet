@@ -14,7 +14,9 @@ import { TextFormatStore } from "./textFormat.svelte";
 import { HunkStageUiStore } from "./hunkUi.svelte";
 import { CloneUiStore } from "./cloneUi.svelte";
 import { InlineEditStore, type InlineEditTarget } from "./inlineEdit.svelte";
-import { stripCodeFences } from "../domain/ai";
+import { ProjectEditStore } from "./projectEdit.svelte";
+import { stripCodeFences, type ProjectFile } from "../domain/ai";
+import { parseSearchReplaceBlocks, applyFileEdits } from "../domain/multiEdit";
 import {
   parseUnifiedDiff,
   buildPatch,
@@ -75,6 +77,8 @@ export class Workspace {
   readonly hunkUi = new HunkStageUiStore();
   readonly cloneUi = new CloneUiStore();
   readonly inlineEdit = new InlineEditStore();
+  readonly projectEditUi = new ProjectEditStore();
+  #projectEditKeyToBuffer = new Map<string, string>();
 
   #fs: FileSystemPort;
   #dialog: DialogPort;
@@ -322,6 +326,52 @@ export class Workspace {
   async showGitDiff(file: string): Promise<void> {
     const rows = await this.vcs.diffHead(file);
     this.compare.showRows(`HEAD: ${file}`, file, rows);
+  }
+
+  /** Run a multi-file AI edit over the open text buffers; produces a review. */
+  async runProjectEdit(): Promise<void> {
+    const ui = this.projectEditUi;
+    if (ui.instruction.trim() === "") return;
+
+    const root = this.explorer.rootPath;
+    const files: ProjectFile[] = [];
+    const contentByKey = new Map<string, string>();
+    this.#projectEditKeyToBuffer = new Map();
+    for (const buf of this.buffers.items) {
+      if (buf.binary || !buf.path) continue;
+      const key = root ? relativeTo(root, buf.path) : buf.name;
+      files.push({ name: key, content: buf.content });
+      contentByKey.set(key, buf.content);
+      this.#projectEditKeyToBuffer.set(key, buf.id);
+    }
+    if (files.length === 0) {
+      ui.status = "error";
+      ui.error = "Nejsou otevřené žádné textové soubory jako kontext.";
+      return;
+    }
+
+    ui.status = "generating";
+    ui.raw = "";
+    ui.results = [];
+    ui.error = null;
+    try {
+      await this.ai.projectEdit(ui.instruction, files, (delta) => (ui.raw += delta));
+      ui.results = applyFileEdits(contentByKey, parseSearchReplaceBlocks(ui.raw));
+      ui.status = "review";
+    } catch (e) {
+      ui.status = "error";
+      ui.error = e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  /** Apply the reviewed multi-file edit to the matching buffers. */
+  acceptProjectEdit(): void {
+    for (const r of this.projectEditUi.results) {
+      if (!r.ok) continue;
+      const bufId = this.#projectEditKeyToBuffer.get(r.path);
+      if (bufId) this.setContent(bufId, r.after);
+    }
+    this.projectEditUi.close();
   }
 
   /** Open the inline AI edit panel for an explicit range (from the editor, Ctrl+K). */
