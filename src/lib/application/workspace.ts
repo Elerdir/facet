@@ -186,6 +186,20 @@ export class Workspace {
   }
 
   /** Find all references; jumps directly for a single hit, else opens a picker. */
+  /** Document symbols (outline) for a file, via its language server. */
+  async documentSymbols(path: string) {
+    const spec = this.settings.current.lspEnabled ? serverForName(path) : null;
+    return spec ? this.lsp.documentSymbols(spec, path) : [];
+  }
+
+  /** All current LSP diagnostics grouped by file path (for the Problems panel). */
+  problemsByFile(): { path: string; diagnostics: LspDiagnostic[] }[] {
+    return Object.entries(this.lsp.diagnostics)
+      .map(([uri, diagnostics]) => ({ path: pathFromFileUri(uri), diagnostics }))
+      .filter((f) => f.diagnostics.length > 0)
+      .sort((a, b) => a.path.localeCompare(b.path));
+  }
+
   async lspFindReferences(path: string, line: number, character: number): Promise<void> {
     const spec = this.settings.current.lspEnabled ? serverForName(path) : null;
     if (!spec) return;

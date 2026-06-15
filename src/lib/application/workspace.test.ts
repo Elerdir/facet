@@ -229,6 +229,20 @@ describe("Workspace open flow", () => {
     expect(vcs.inits).toEqual(["/proj"]);
   });
 
+  it("groups LSP diagnostics by file for the Problems panel", () => {
+    const { ws } = setup();
+    ws.lsp.diagnostics = {
+      "file:///proj/a.ts": [
+        { line: 0, character: 0, endLine: 0, endCharacter: 1, severity: 1, message: "boom" },
+      ],
+      "file:///proj/empty.ts": [],
+    };
+    const problems = ws.problemsByFile();
+    expect(problems).toHaveLength(1);
+    expect(problems[0].path).toBe("/proj/a.ts");
+    expect(problems[0].diagnostics[0].message).toBe("boom");
+  });
+
   it("builds a codebase index and retrieves relevant chunks for @codebase", async () => {
     const { fs, ws } = setup();
     fs.files.set("/proj/auth.ts", "function login(user) { return validatePassword(user); }");

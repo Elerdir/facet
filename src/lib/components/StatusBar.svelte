@@ -3,16 +3,35 @@
   import { isDirty } from "../domain/buffer";
   import { extension } from "../domain/paths";
 
-  let { onEncodingClick }: { onEncodingClick: () => void } = $props();
+  let {
+    onEncodingClick,
+    onProblemsClick,
+  }: { onEncodingClick: () => void; onProblemsClick: () => void } = $props();
 
   const ws = getWorkspace();
   const activeId = $derived(ws.layout.activeTabId);
   const buf = $derived(activeId ? (ws.buffers.get(activeId) ?? null) : null);
   const lines = $derived(buf ? buf.content.split("\n").length : 0);
   const lang = $derived(buf ? extension(buf.name).toUpperCase() || "TEXT" : "");
+
+  const problemCounts = $derived.by(() => {
+    let err = 0;
+    let warn = 0;
+    for (const diags of Object.values(ws.lsp.diagnostics)) {
+      for (const d of diags) {
+        if (d.severity === 1) err++;
+        else if (d.severity === 2) warn++;
+      }
+    }
+    return { err, warn };
+  });
 </script>
 
 <div class="statusbar">
+  <button class="problems" title="Problémy" onclick={onProblemsClick}>
+    <span class="pe">⊘ {problemCounts.err}</span>
+    <span class="pw">⚠ {problemCounts.warn}</span>
+  </button>
   {#if buf}
     <span class="path">{buf.path ?? "neuložený soubor"}</span>
     <span class="spacer"></span>
@@ -78,5 +97,29 @@
   .encoding:hover {
     color: var(--fg);
     text-decoration: underline;
+  }
+
+  .problems {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: none;
+    background: transparent;
+    color: var(--fg-dim);
+    font: inherit;
+    cursor: pointer;
+    padding: 0 8px 0 0;
+  }
+
+  .problems:hover {
+    color: var(--fg);
+  }
+
+  .pe {
+    color: #f85149;
+  }
+
+  .pw {
+    color: #d29922;
   }
 </style>

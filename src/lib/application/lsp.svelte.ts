@@ -3,6 +3,7 @@ import { fileUri } from "../domain/paths";
 import type { ServerSpec } from "../lsp/servers";
 import type { LspTransport } from "../ports/lsp";
 import type { LspLocation, LspTextEdit, LspWorkspaceEdit } from "../lsp/edits";
+import { parseDocumentSymbols, type DocSymbol } from "../lsp/symbols";
 
 export interface LspDiagnostic {
   line: number;
@@ -189,6 +190,16 @@ export class LspManager {
       newName,
     });
     return parseWorkspaceEdit(res);
+  }
+
+  async documentSymbols(spec: ServerSpec, path: string): Promise<DocSymbol[]> {
+    const conn = this.#conns.get(spec.serverId);
+    if (!conn) return [];
+    await conn.ready;
+    const res = await this.#request(conn, "textDocument/documentSymbol", {
+      textDocument: { uri: fileUri(path) },
+    });
+    return parseDocumentSymbols(res);
   }
 
   diagnosticsFor(path: string): LspDiagnostic[] {
