@@ -39,6 +39,7 @@
   import { loadUserTemplates } from "./lib/config/loadTemplates";
   import { Autosave } from "./lib/application/autosave";
   import { coreCommands } from "./lib/application/commands";
+  import { chordFromEvent, buildChordMap } from "./lib/domain/keybindings";
   import { relativeTo } from "./lib/domain/paths";
 
   setWorkspace(workspace);
@@ -186,99 +187,51 @@
     palette = "none";
   }
 
+  const chordMap = $derived(buildChordMap(workspace.settings.current.keybindings));
+
+  function dispatchShortcut(id: string) {
+    switch (id) {
+      case "file.save": workspace.saveActive(); break;
+      case "file.open": workspace.openFromDialog(); break;
+      case "file.new": palette = "newfile"; break;
+      case "file.quickOpen": void openQuickOpen(); break;
+      case "view.commandPalette": palette = "commands"; break;
+      case "view.toggleSidebar": sidebarOpen = !sidebarOpen; break;
+      case "view.terminal": terminalOpen = !terminalOpen; break;
+      case "view.history": historyOpen = !historyOpen; break;
+      case "ai.chat": aiOpen = !aiOpen; break;
+      case "app.settings": settingsOpen = true; break;
+      case "edit.closeTab": {
+        const leaf = workspace.layout.activeLeaf;
+        if (leaf.activeTab) workspace.closeTab(leaf.id, leaf.activeTab);
+        break;
+      }
+      case "edit.gotoLine": gotoLineValue = ""; gotoLineOpen = true; break;
+      case "edit.workspaceSymbol": workspaceSymbolOpen = true; break;
+      case "edit.gotoSymbol": void workspace.goToSymbol(); break;
+      case "view.zen": zen = !zen; break;
+      case "view.previewBeside": workspace.openPreviewBeside(); break;
+      case "edit.format": workspace.formatActive("format"); break;
+      case "edit.organizeImports": workspace.formatActive("organizeImports"); break;
+      case "debug.startContinue":
+        if (workspace.debug.state === "stopped") workspace.debug.continue();
+        else if (!workspace.debug.active) void workspace.startDebugging();
+        break;
+      case "debug.stop": void workspace.stopDebugging(); break;
+    }
+  }
+
   function onKeydown(e: KeyboardEvent) {
     if (e.key === "Escape" && zen) {
       e.preventDefault();
       zen = false;
       return;
     }
-    if (e.key === "F5" && !e.ctrlKey && !e.altKey) {
+    const chord = chordFromEvent(e);
+    const id = chord ? chordMap[chord] : undefined;
+    if (id) {
       e.preventDefault();
-      if (e.shiftKey) {
-        void workspace.stopDebugging();
-      } else if (workspace.debug.state === "stopped") {
-        workspace.debug.continue();
-      } else if (!workspace.debug.active) {
-        void workspace.startDebugging();
-      }
-      return;
-    }
-    if (!e.ctrlKey || e.altKey) return;
-    const key = e.key.toLowerCase();
-    if (e.shiftKey) {
-      if (e.code === "Period") {
-        e.preventDefault();
-        void workspace.goToSymbol();
-      } else if (key === "z") {
-        e.preventDefault();
-        zen = !zen;
-      } else if (key === "v") {
-        e.preventDefault();
-        workspace.openPreviewBeside();
-      } else if (key === "f") {
-        e.preventDefault();
-        workspace.formatActive("format");
-      } else if (key === "o") {
-        e.preventDefault();
-        workspace.formatActive("organizeImports");
-      } else if (key === "p") {
-        e.preventDefault();
-        palette = "commands";
-      }
-      return;
-    }
-    switch (key) {
-      case "s":
-        e.preventDefault();
-        workspace.saveActive();
-        break;
-      case "o":
-        e.preventDefault();
-        workspace.openFromDialog();
-        break;
-      case "n":
-        e.preventDefault();
-        palette = "newfile";
-        break;
-      case "`":
-        e.preventDefault();
-        terminalOpen = !terminalOpen;
-        break;
-      case "b":
-        e.preventDefault();
-        sidebarOpen = !sidebarOpen;
-        break;
-      case "h":
-        e.preventDefault();
-        historyOpen = !historyOpen;
-        break;
-      case "g":
-        e.preventDefault();
-        gotoLineValue = "";
-        gotoLineOpen = true;
-        break;
-      case "t":
-        e.preventDefault();
-        workspaceSymbolOpen = true;
-        break;
-      case "p":
-        e.preventDefault();
-        void openQuickOpen();
-        break;
-      case "i":
-        e.preventDefault();
-        aiOpen = !aiOpen;
-        break;
-      case ",":
-        e.preventDefault();
-        settingsOpen = true;
-        break;
-      case "w": {
-        e.preventDefault();
-        const leaf = workspace.layout.activeLeaf;
-        if (leaf.activeTab) workspace.closeTab(leaf.id, leaf.activeTab);
-        break;
-      }
+      dispatchShortcut(id);
     }
   }
 

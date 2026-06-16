@@ -14,6 +14,7 @@ describe("parseSettings", () => {
         lspServers: [
           { extensions: ["zig"], command: "zls", args: [], languageId: "zig" },
         ],
+        keybindings: { "file.save": "Ctrl+Alt+S" },
         aiApiKey: "sk-ant-test",
         aiModel: "claude-haiku-4-5",
         aiGhostCompletion: true,
@@ -39,6 +40,7 @@ describe("parseSettings", () => {
       lspServers: [
         { extensions: ["zig"], serverId: "zls", command: "zls", args: [], languageId: "zig" },
       ],
+      keybindings: { "file.save": "Ctrl+Alt+S" },
       aiApiKey: "sk-ant-test",
       aiModel: "claude-haiku-4-5",
       aiGhostCompletion: true,
