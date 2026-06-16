@@ -106,6 +106,7 @@
           ? (line, ch) =>
               buffer?.path ? ws.lspComplete(buffer.path, line, ch) : Promise.resolve([])
           : undefined}
+        snippets={buffer ? ws.snippetsFor(buffer.name) : []}
         lspHover={lspActive
           ? (line, ch) =>
               buffer?.path ? ws.lspHover(buffer.path, line, ch) : Promise.resolve(null)

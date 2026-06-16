@@ -43,7 +43,7 @@ import type { DapTransport } from "../ports/dap";
 import { serializeSession, parseSession, type SessionData } from "../config/session";
 import { appConfigDir, join } from "@tauri-apps/api/path";
 import { isDirty, type Buffer } from "../domain/buffer";
-import { basename, dirname, normalize, pathFromFileUri, relativeTo } from "../domain/paths";
+import { basename, dirname, extension, normalize, pathFromFileUri, relativeTo } from "../domain/paths";
 import { applyTextEdits, type LspWorkspaceEdit } from "../lsp/edits";
 import { CodeActionsUiStore } from "./codeActionsUi.svelte";
 import { FileOpUiStore } from "./fileOpUi.svelte";
@@ -51,6 +51,7 @@ import { serverForName, userServerForName, type ServerSpec } from "../lsp/server
 import { flattenSymbols, type WorkspaceSymbol } from "../lsp/symbols";
 import { changeMarkers, type ChangeKind } from "../domain/changeGutter";
 import { replaceAllLiteral } from "../domain/replace";
+import { snippetsForExtension, type SnippetConfig } from "../domain/snippets";
 import { convertEol, tabsToSpaces, spacesToTabs, type Eol } from "../domain/textInfo";
 import type { FileSystemPort } from "../ports/fileSystem";
 import type { SearchMatch } from "../domain/search";
@@ -176,6 +177,11 @@ export class Workspace {
   }
 
   // --- language server (LSP) glue -----------------------------------------
+
+  /** Snippets available for a file (built-ins + user, by extension). */
+  snippetsFor(name: string): SnippetConfig[] {
+    return snippetsForExtension(extension(name), this.settings.current.snippets);
+  }
 
   /** The language server for a file: user config overrides the built-ins. */
   serverFor(name: string): ServerSpec | null {

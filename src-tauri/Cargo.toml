@@ -1,6 +1,6 @@
 [package]
 name = "facet"
-version = "0.6.0"
+version = "0.7.0"
 description = "Facet — a fast desktop editor"
 authors = ["you"]
 edition = "2021"

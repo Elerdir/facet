@@ -11,6 +11,7 @@
   import { EDITOR_THEMES } from "../../domain/editorThemes";
   import { parseLspServers } from "../../lsp/servers";
   import { BINDABLE_COMMANDS, effectiveChord, chordFromEvent } from "../../domain/keybindings";
+  import { parseSnippets } from "../../domain/snippets";
 
   let { onClose }: { onClose: () => void } = $props();
 
@@ -49,6 +50,24 @@
     } catch (e) {
       lspErr = true;
       lspMsg = `Neplatný JSON: ${e instanceof Error ? e.message : String(e)}`;
+    }
+  }
+
+  // --- Snippety -------------------------------------------------------------
+  let snipJson = $state(JSON.stringify(ws.settings.current.snippets, null, 2));
+  let snipMsg = $state("");
+  let snipErr = $state(false);
+
+  function saveSnippets() {
+    try {
+      const parsed = parseSnippets(JSON.parse(snipJson));
+      ws.settings.update({ snippets: parsed });
+      snipJson = JSON.stringify(parsed, null, 2);
+      snipErr = false;
+      snipMsg = `Uloženo (${parsed.length} úryvků). Projeví se po znovuotevření souboru.`;
+    } catch (e) {
+      snipErr = true;
+      snipMsg = `Neplatný JSON: ${e instanceof Error ? e.message : String(e)}`;
     }
   }
 
@@ -390,6 +409,26 @@
         <div class="note">
           Tučně / kurzíva / podtržení pro výběr najdeš v paletě příkazů
           (Ctrl+Shift+P → „Formát: …").
+        </div>
+
+        <div class="row col">
+          <span class="lbl">Úryvky / snippety (JSON)</span>
+          <textarea
+            class="json"
+            rows="6"
+            spellcheck="false"
+            bind:value={snipJson}
+            placeholder={'[{ "prefix": "log", "body": "console.log($1)$0", "description": "log", "extensions": ["ts","js"] }]'}
+          ></textarea>
+          <div class="lsp-actions">
+            <button class="btn" onclick={saveSnippets}>Uložit úryvky</button>
+            {#if snipMsg}<span class="lsp-msg" class:err={snipErr}>{snipMsg}</span>{/if}
+          </div>
+          <span class="hint-text">
+            Tab-stopy: <code>$1</code>, <code>${'{'}1:popis{'}'}</code>, finální kurzor
+            <code>$0</code>. Prázdné „extensions" = všechny jazyky. Nabízí se
+            ve completion (Ctrl+Space), Tab skáče mezi poli.
+          </span>
         </div>
       {:else if tab === "templates"}
         <div class="tpl-grid">
