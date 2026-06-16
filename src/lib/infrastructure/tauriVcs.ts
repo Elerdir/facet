@@ -6,6 +6,7 @@ import type {
   SyncOp,
   Commit,
   BlameLine,
+  StashEntry,
 } from "../domain/vcs";
 import type { DiffRow } from "../domain/diff";
 
@@ -49,6 +50,26 @@ export class TauriVcs implements VcsPort {
 
   sync(repo: string, op: SyncOp, auth?: string | null): Promise<string> {
     return invoke<string>("git_sync", { repo, op, auth: auth ?? null });
+  }
+
+  discard(repo: string, file: string): Promise<void> {
+    return invoke<void>("git_discard", { repo, file });
+  }
+
+  stashSave(repo: string, message: string | null): Promise<void> {
+    return invoke<void>("git_stash_save", { repo, message });
+  }
+
+  stashList(repo: string): Promise<StashEntry[]> {
+    return invoke<StashEntry[]>("git_stash_list", { repo });
+  }
+
+  stashPop(repo: string, index: number): Promise<void> {
+    return invoke<void>("git_stash_pop", { repo, index });
+  }
+
+  stashDrop(repo: string, index: number): Promise<void> {
+    return invoke<void>("git_stash_drop", { repo, index });
   }
 
   init(path: string): Promise<void> {

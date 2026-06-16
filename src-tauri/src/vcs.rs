@@ -7,7 +7,7 @@
 //! repositories.
 
 use crate::{detect, diff};
-use git2::{Repository, Status, StatusOptions};
+use git2::{Repository, Signature, Status, StatusOptions};
 use std::path::Path;
 use std::process::Command;
 
@@ -350,6 +350,77 @@ pub fn git_diff_head(repo: String, file: String) -> Result<Vec<diff::DiffRow>, S
 pub fn git_head_content(repo: String, file: String) -> Result<String, String> {
     let repository = Repository::open(&repo).map_err(|e| e.to_string())?;
     Ok(head_blob_content(&repository, &file).unwrap_or_default())
+}
+
+/// Discard working-tree changes for a tracked file (reset it to HEAD).
+#[tauri::command]
+pub fn git_discard(repo: String, file: String) -> Result<(), String> {
+    let repository = Repository::open(&repo).map_err(|e| e.to_string())?;
+    let mut cb = git2::build::CheckoutBuilder::new();
+    cb.path(&file).force();
+    repository
+        .checkout_head(Some(&mut cb))
+        .map_err(|e| format!("Nelze zahodit změny: {e}"))
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StashEntry {
+    index: usize,
+    message: String,
+}
+
+fn stash_signature(repo: &Repository) -> Result<Signature<'static>, String> {
+    repo.signature()
+        .or_else(|_| Signature::now("Facet", "facet@local"))
+        .map_err(|e| e.to_string())
+}
+
+/// Stash the working tree (and index) with an optional message.
+#[tauri::command]
+pub fn git_stash_save(repo: String, message: Option<String>) -> Result<(), String> {
+    let mut repository = Repository::open(&repo).map_err(|e| e.to_string())?;
+    let sig = stash_signature(&repository)?;
+    let msg = message.filter(|m| !m.trim().is_empty());
+    repository
+        .stash_save(&sig, msg.as_deref().unwrap_or("Facet stash"), None)
+        .map_err(|e| format!("Nelze uložit stash: {e}"))?;
+    Ok(())
+}
+
+/// List existing stashes (newest is index 0).
+#[tauri::command]
+pub fn git_stash_list(repo: String) -> Result<Vec<StashEntry>, String> {
+    let mut repository = Repository::open(&repo).map_err(|e| e.to_string())?;
+    let mut out = Vec::new();
+    repository
+        .stash_foreach(|index, message, _oid| {
+            out.push(StashEntry {
+                index,
+                message: message.to_string(),
+            });
+            true
+        })
+        .map_err(|e| e.to_string())?;
+    Ok(out)
+}
+
+/// Apply a stash and remove it from the stash list.
+#[tauri::command]
+pub fn git_stash_pop(repo: String, index: usize) -> Result<(), String> {
+    let mut repository = Repository::open(&repo).map_err(|e| e.to_string())?;
+    repository
+        .stash_pop(index, None)
+        .map_err(|e| format!("Nelze obnovit stash: {e}"))
+}
+
+/// Drop a stash without applying it.
+#[tauri::command]
+pub fn git_stash_drop(repo: String, index: usize) -> Result<(), String> {
+    let mut repository = Repository::open(&repo).map_err(|e| e.to_string())?;
+    repository
+        .stash_drop(index)
+        .map_err(|e| format!("Nelze zahodit stash: {e}"))
 }
 
 #[tauri::command]

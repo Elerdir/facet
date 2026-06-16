@@ -4,6 +4,7 @@ import type {
   SyncOp,
   Commit,
   BlameLine,
+  StashEntry,
 } from "../domain/vcs";
 import type { DiffRow } from "../domain/diff";
 
@@ -33,6 +34,12 @@ export interface VcsPort {
   unstagedDiff(repo: string, file: string): Promise<string>;
   /** Apply a patch to the index only (stage a hunk). */
   applyCached(repo: string, patch: string): Promise<void>;
+  /** Discard working-tree changes for a tracked file (reset to HEAD). */
+  discard(repo: string, file: string): Promise<void>;
+  stashSave(repo: string, message: string | null): Promise<void>;
+  stashList(repo: string): Promise<StashEntry[]>;
+  stashPop(repo: string, index: number): Promise<void>;
+  stashDrop(repo: string, index: number): Promise<void>;
   init(path: string): Promise<void>;
   clone(url: string, target: string, auth?: string | null): Promise<string>;
   remoteUrl(repo: string): Promise<string | null>;

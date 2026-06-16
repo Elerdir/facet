@@ -52,6 +52,7 @@ import { flattenSymbols, type WorkspaceSymbol } from "../lsp/symbols";
 import { changeMarkers, type ChangeKind } from "../domain/changeGutter";
 import { replaceAllLiteral } from "../domain/replace";
 import { snippetsForExtension, type SnippetConfig } from "../domain/snippets";
+import { parseConflicts, resolveConflict, type ConflictChoice } from "../domain/conflicts";
 import { convertEol, tabsToSpaces, spacesToTabs, offsetToPosition, type Eol } from "../domain/textInfo";
 import type { FileSystemPort } from "../ports/fileSystem";
 import type { SearchMatch } from "../domain/search";
@@ -332,6 +333,35 @@ export class Workspace {
     const next =
       kind === "spaces" ? tabsToSpaces(buf.content, size) : spacesToTabs(buf.content, size);
     if (next !== buf.content) this.setContent(buf.id, next);
+  }
+
+  /** Discard a file's working-tree changes (confirm), then reload its buffer. */
+  async discardFile(path: string): Promise<void> {
+    if (!this.vcs.repo) return;
+    const ok = await this.#dialog.confirm(`Zahodit změny v „${basename(path)}"?`);
+    if (!ok) return;
+    await this.vcs.discard(path);
+    const target = normalize(path);
+    const buf = this.buffers.items.find((b) => b.path && normalize(b.path) === target);
+    if (buf) await this.buffers.hardReload(buf.id);
+  }
+
+  /** Discard a repo-relative file (from the SCM panel). */
+  discardRepoFile(rel: string): Promise<void> {
+    const root = this.vcs.repo;
+    if (!root) return Promise.resolve();
+    const sep = root.includes("\\") ? "\\" : "/";
+    const abs = root.replace(/[\\/]+$/, "") + sep + rel.split("/").join(sep);
+    return this.discardFile(abs);
+  }
+
+  /** Resolve a merge conflict in the active buffer (by index) with a side. */
+  resolveConflict(index: number, choice: ConflictChoice): void {
+    const buf = this.activeBuffer();
+    if (!buf || buf.binary) return;
+    const conflicts = parseConflicts(buf.content);
+    const c = conflicts[index];
+    if (c) this.setContent(buf.id, resolveConflict(buf.content, c, choice));
   }
 
   /** Toggle a breakpoint and, if a session is live, push the file's set. */

@@ -12,6 +12,10 @@
     GitPullRequest,
     Rows3,
     CloudDownload,
+    Undo2,
+    Archive,
+    ArchiveRestore,
+    Trash2,
   } from "@lucide/svelte";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { getWorkspace } from "../../application/context";
@@ -185,6 +189,16 @@
       <button class="mini" title="Push" onclick={() => doSync("push")}>
         <ArrowUp size={13} />
       </button>
+      <button
+        class="mini"
+        title="Stash (uložit rozdělanou práci)"
+        onclick={() => {
+          void ws.vcs.stashSave(message.trim() || null);
+          message = "";
+        }}
+      >
+        <Archive size={13} />
+      </button>
     </div>
 
     {#if creatingBranch}
@@ -243,6 +257,13 @@
             {:else}
               <button
                 class="act"
+                title="Zahodit změny"
+                onclick={() => void ws.discardRepoFile(f.path)}
+              >
+                <Undo2 size={13} />
+              </button>
+              <button
+                class="act"
                 title="Připravit po blocích…"
                 onclick={() => ws.hunkUi.open(f.path)}
               >
@@ -288,6 +309,23 @@
       {/if}
       {#if prsMsg}
         <div class="empty">{prsMsg}</div>
+      {/if}
+
+      {#if ws.vcs.stashes.length > 0}
+        <div class="group-title">Stash ({ws.vcs.stashes.length})</div>
+        {#each ws.vcs.stashes as st (st.index)}
+          <div class="row">
+            <span class="name" title={st.message}>
+              <span class="path">{st.message}</span>
+            </span>
+            <button class="act" title="Obnovit (pop)" onclick={() => ws.vcs.stashPop(st.index)}>
+              <ArchiveRestore size={13} />
+            </button>
+            <button class="act" title="Zahodit stash" onclick={() => ws.vcs.stashDrop(st.index)}>
+              <Trash2 size={13} />
+            </button>
+          </div>
+        {/each}
       {/if}
 
       {#if ws.vcs.log.length > 0}

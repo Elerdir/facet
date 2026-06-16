@@ -6,6 +6,7 @@ import {
   type SyncOp,
   type Commit,
   type BlameLine,
+  type StashEntry,
 } from "../domain/vcs";
 import { relativeTo } from "../domain/paths";
 import type { VcsPort } from "../ports/vcs";
@@ -20,6 +21,7 @@ export class VcsStore {
   branches = $state<Branches>(NO_BRANCHES);
   log = $state<Commit[]>([]);
   blame = $state<{ path: string; lines: BlameLine[] } | null>(null);
+  stashes = $state<StashEntry[]>([]);
   repo = $state<string | null>(null);
 
   #port: VcsPort;
@@ -44,14 +46,17 @@ export class VcsStore {
       if (this.status.isRepo) {
         this.branches = await this.#port.branches(repo);
         this.log = await this.#port.log(repo, 50);
+        this.stashes = await this.#port.stashList(repo).catch(() => []);
       } else {
         this.branches = NO_BRANCHES;
         this.log = [];
+        this.stashes = [];
       }
     } else {
       this.status = EMPTY;
       this.branches = NO_BRANCHES;
       this.log = [];
+      this.stashes = [];
     }
   }
 
@@ -78,6 +83,31 @@ export class VcsStore {
     } catch {
       return null;
     }
+  }
+
+  /** Discard working-tree changes for a file (absolute path). */
+  async discard(path: string): Promise<void> {
+    if (!this.repo) return;
+    await this.#port.discard(this.repo, relativeTo(this.repo, path));
+    await this.refresh(this.repo);
+  }
+
+  async stashSave(message: string | null): Promise<void> {
+    if (!this.repo) return;
+    await this.#port.stashSave(this.repo, message);
+    await this.refresh(this.repo);
+  }
+
+  async stashPop(index: number): Promise<void> {
+    if (!this.repo) return;
+    await this.#port.stashPop(this.repo, index);
+    await this.refresh(this.repo);
+  }
+
+  async stashDrop(index: number): Promise<void> {
+    if (!this.repo) return;
+    await this.#port.stashDrop(this.repo, index);
+    await this.refresh(this.repo);
   }
 
   async switchBranch(name: string): Promise<void> {

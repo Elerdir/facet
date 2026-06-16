@@ -5,6 +5,7 @@
   import HexView from "../hex/HexView.svelte";
   import Breadcrumbs from "../breadcrumbs/Breadcrumbs.svelte";
   import StickyScroll from "../sticky/StickyScroll.svelte";
+  import ConflictBar from "../conflict/ConflictBar.svelte";
   import type { ChangeKind } from "../../domain/changeGutter";
   import { getWorkspace } from "../../application/context";
   import type { PaneLeaf } from "../../domain/layout";
@@ -85,6 +86,7 @@
         {#if ws.settings.current.editorBreadcrumbs && buffer}
           <Breadcrumbs {buffer} active={isActivePane} />
         {/if}
+        <ConflictBar {buffer} active={isActivePane} />
         <div class="editor-fill">
           {#if ws.settings.current.editorStickyScroll && buffer}
             <StickyScroll {buffer} {topLine} />
