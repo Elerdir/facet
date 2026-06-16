@@ -41,6 +41,7 @@
     breakpointLines,
     debugStopLine = null,
     onToggleBreakpoint,
+    onTopLine,
     onCursor,
     onRevealConsumed,
   }: {
@@ -68,6 +69,7 @@
     breakpointLines?: number[];
     debugStopLine?: number | null;
     onToggleBreakpoint?: (line: number) => void;
+    onTopLine?: (line: number) => void;
     onCursor?: (info: {
       line: number;
       col: number;
@@ -187,6 +189,13 @@
   }
   let loadGen = 0; // guards against stale async highlight loads
 
+  // 1-based first visible line at the top edge of the viewport (sticky scroll).
+  function emitTopLine(v: EditorView) {
+    if (!onTopLine) return;
+    const block = v.lineBlockAtHeight(v.scrollDOM.scrollTop + 1);
+    onTopLine(v.state.doc.lineAt(block.from).number);
+  }
+
   function makeState(buf: Buffer): EditorState {
     return EditorState.create({
       doc: buf.content,
@@ -232,11 +241,17 @@
               ]),
             ]
           : []),
+        ...(onTopLine
+          ? [EditorView.domEventHandlers({ scroll: (_e, v) => void emitTopLine(v) })]
+          : []),
         EditorView.updateListener.of((u) => {
           if (u.docChanged) {
             const text = u.state.doc.toString();
             lastEmitted = text;
             onInput(text);
+          }
+          if (onTopLine && (u.docChanged || u.viewportChanged || u.geometryChanged)) {
+            emitTopLine(u.view);
           }
           if ((u.docChanged || u.selectionSet) && onCursor) {
             const sel = u.state.selection.main;

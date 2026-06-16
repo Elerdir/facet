@@ -4,12 +4,15 @@
   import MarkdownPreview from "../preview/MarkdownPreview.svelte";
   import HexView from "../hex/HexView.svelte";
   import Breadcrumbs from "../breadcrumbs/Breadcrumbs.svelte";
+  import StickyScroll from "../sticky/StickyScroll.svelte";
   import { getWorkspace } from "../../application/context";
   import { serverForName } from "../../lsp/servers";
   import type { PaneLeaf } from "../../domain/layout";
 
   let { leaf }: { leaf: PaneLeaf } = $props();
   const ws = getWorkspace();
+
+  let topLine = $state(1);
 
   const buffer = $derived(
     leaf.activeTab ? (ws.buffers.get(leaf.activeTab) ?? null) : null,
@@ -58,11 +61,17 @@
     {:else if leaf.view === "preview"}
       <MarkdownPreview {buffer} />
     {:else}
-      <div class="editor-stack">
+      <div
+        class="editor-stack"
+        style={`--editor-font: ${ws.settings.current.editorFontFamily}; --editor-font-size: ${ws.settings.current.editorFontSize}px`}
+      >
         {#if ws.settings.current.editorBreadcrumbs && buffer}
           <Breadcrumbs {buffer} active={isActivePane} />
         {/if}
         <div class="editor-fill">
+          {#if ws.settings.current.editorStickyScroll && buffer}
+            <StickyScroll {buffer} {topLine} />
+          {/if}
           <CodeEditor
         {buffer}
         theme={ws.settings.current.theme}
@@ -118,6 +127,7 @@
         onToggleBreakpoint={(line) => {
           if (buffer?.path) ws.toggleBreakpoint(buffer.path, line);
         }}
+        onTopLine={(line) => (topLine = line)}
         onInput={(text) => {
           if (buffer) ws.setContent(buffer.id, text);
         }}
