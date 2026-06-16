@@ -1,6 +1,7 @@
 import { DEFAULT_AI_MODEL, isKnownAiModel } from "../domain/ai";
 import { isKnownEditorTheme } from "../domain/editorThemes";
 import { parseLspServers, type LspServerConfig } from "../lsp/servers";
+import { parseKeybindings } from "../domain/keybindings";
 import type { CustomTemplate } from "../domain/newFileTemplates";
 
 export interface Settings {
@@ -11,6 +12,8 @@ export interface Settings {
   editorTheme: string;
   lspEnabled: boolean;
   lspServers: LspServerConfig[];
+  /** Command id → chord overrides for global shortcuts. */
+  keybindings: Record<string, string>;
   aiApiKey: string;
   aiModel: string;
   aiGhostCompletion: boolean;
@@ -46,6 +49,7 @@ export const DEFAULT_SETTINGS: Settings = {
   editorTheme: "default",
   lspEnabled: true,
   lspServers: [],
+  keybindings: {},
   aiApiKey: "",
   aiModel: DEFAULT_AI_MODEL,
   aiGhostCompletion: false,
@@ -98,6 +102,7 @@ export function parseSettings(raw: string): Settings {
     lspEnabled:
       typeof r.lspEnabled === "boolean" ? r.lspEnabled : DEFAULT_SETTINGS.lspEnabled,
     lspServers: parseLspServers(r.lspServers),
+    keybindings: parseKeybindings(r.keybindings),
     aiApiKey: typeof r.aiApiKey === "string" ? r.aiApiKey : DEFAULT_SETTINGS.aiApiKey,
     aiModel:
       typeof r.aiModel === "string" && isKnownAiModel(r.aiModel)

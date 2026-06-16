@@ -10,14 +10,29 @@
   import { EDITOR_FONTS } from "../../domain/editorFonts";
   import { EDITOR_THEMES } from "../../domain/editorThemes";
   import { parseLspServers } from "../../lsp/servers";
+  import { BINDABLE_COMMANDS, effectiveChord, chordFromEvent } from "../../domain/keybindings";
 
   let { onClose }: { onClose: () => void } = $props();
 
   const ws = getWorkspace();
   const s = $derived(ws.settings.current);
 
-  type Tab = "general" | "editor" | "templates" | "git" | "ai";
+  type Tab = "general" | "editor" | "templates" | "git" | "keys" | "ai";
   let tab = $state<Tab>("general");
+
+  // --- Klávesové zkratky ----------------------------------------------------
+  function recordKey(id: string, e: KeyboardEvent) {
+    e.preventDefault();
+    if (e.key === "Escape" || e.key === "Tab") return;
+    const chord = chordFromEvent(e);
+    if (chord) ws.settings.update({ keybindings: { ...s.keybindings, [id]: chord } });
+  }
+
+  function resetKey(id: string) {
+    const next = { ...s.keybindings };
+    delete next[id];
+    ws.settings.update({ keybindings: next });
+  }
 
   // --- Vlastní LSP servery --------------------------------------------------
   let lspJson = $state(JSON.stringify(ws.settings.current.lspServers, null, 2));
@@ -195,6 +210,7 @@
       <button class="tab" class:active={tab === "editor"} onclick={() => (tab = "editor")}>Editor</button>
       <button class="tab" class:active={tab === "templates"} onclick={() => (tab = "templates")}>Šablony</button>
       <button class="tab" class:active={tab === "git"} onclick={() => (tab = "git")}>Git</button>
+      <button class="tab" class:active={tab === "keys"} onclick={() => (tab = "keys")}>Zkratky</button>
       <button class="tab" class:active={tab === "ai"} onclick={() => (tab = "ai")}>AI</button>
     </div>
 
@@ -487,6 +503,23 @@
           pověření systému (Windows Credential Manager / macOS Keychain) —
           nikdy v souboru nastavení.
         </div>
+      {:else if tab === "keys"}
+        <div class="note">
+          Klikni do pole a stiskni kombinaci. Prázdné = nepřiřazeno. Zkratky
+          uvnitř editoru (F12, F2, Ctrl+K…) se zde nenastavují.
+        </div>
+        {#each BINDABLE_COMMANDS as cmd (cmd.id)}
+          <div class="key-row">
+            <span class="key-label">{cmd.label}</span>
+            <input
+              class="key-input"
+              readonly
+              value={effectiveChord(cmd.id, s.keybindings) || "—"}
+              onkeydown={(e) => recordKey(cmd.id, e)}
+            />
+            <button class="key-reset" title="Výchozí" onclick={() => resetKey(cmd.id)}>↺</button>
+          </div>
+        {/each}
       {:else}
         <label class="row">
           <span>Claude API klíč</span>
@@ -884,5 +917,47 @@
     font-size: 11px;
     color: var(--fg-dim);
     line-height: 1.4;
+  }
+
+  .key-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 0;
+  }
+
+  .key-label {
+    flex: 1;
+    font-size: 13px;
+  }
+
+  .key-input {
+    flex: 0 0 150px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--fg);
+    padding: 5px 8px;
+    font-family: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+    font-size: 12px;
+    text-align: center;
+    cursor: pointer;
+  }
+
+  .key-input:focus {
+    border-color: var(--accent);
+    outline: none;
+  }
+
+  .key-reset {
+    border: none;
+    background: transparent;
+    color: var(--fg-dim);
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  .key-reset:hover {
+    color: var(--fg);
   }
 </style>
