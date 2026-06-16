@@ -4,6 +4,7 @@ import type { ServerSpec } from "../lsp/servers";
 import type { LspTransport } from "../ports/lsp";
 import { parseWorkspaceEdit, type LspLocation, type LspWorkspaceEdit } from "../lsp/edits";
 import { parseCodeActions, type CodeActionItem } from "../lsp/codeActions";
+import { parseSignatureHelp, type SignatureHelp } from "../lsp/signatureHelp";
 import { parseDocumentSymbols, type DocSymbol } from "../lsp/symbols";
 
 export interface LspDiagnostic {
@@ -233,6 +234,22 @@ export class LspManager {
       },
     });
     return parseCodeActions(res);
+  }
+
+  async signatureHelp(
+    spec: ServerSpec,
+    path: string,
+    line: number,
+    character: number,
+  ): Promise<SignatureHelp | null> {
+    const conn = this.#conns.get(spec.serverId);
+    if (!conn) return null;
+    await conn.ready;
+    const res = await this.#request(conn, "textDocument/signatureHelp", {
+      textDocument: { uri: fileUri(path) },
+      position: { line, character },
+    });
+    return parseSignatureHelp(res);
   }
 
   async executeCommand(spec: ServerSpec, command: string, args: unknown[]): Promise<void> {

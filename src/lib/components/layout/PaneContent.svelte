@@ -111,6 +111,10 @@
               if (buffer?.path) void ws.requestCodeActions(buffer.path, line, ch);
             }
           : undefined}
+        signatureHelp={lspActive
+          ? (line, ch) =>
+              buffer?.path ? ws.signatureHelp(buffer.path, line, ch) : Promise.resolve(null)
+          : undefined}
         ghostComplete={ws.settings.current.aiGhostCompletion &&
         ws.settings.current.aiApiKey.trim() !== ""
           ? (params, signal) =>

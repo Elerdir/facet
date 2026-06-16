@@ -9,7 +9,9 @@
   import { resolveHighlighting, loadHighlightExtension } from "./highlighting";
   import { lspCompletion, lspHoverTooltip, lspLinter } from "./lspExtensions";
   import { breakpointExtensions } from "./breakpoints";
+  import { signatureHelpExtension, setSignature } from "./signatureHelp";
   import { ghostCompletion } from "./ghostCompletion";
+  import type { SignatureHelp } from "../lsp/signatureHelp";
   import { LARGE_TEXT_BYTES } from "../domain/fileInfo";
   import type { Buffer } from "../domain/buffer";
   import type { BlameLine } from "../domain/vcs";
@@ -37,6 +39,7 @@
     onFindReferences,
     onRenameRequest,
     onCodeAction,
+    signatureHelp,
     onInlineEdit,
     ghostComplete,
     breakpointLines,
@@ -63,6 +66,7 @@
     onFindReferences?: (line: number, character: number) => void;
     onRenameRequest?: (line: number, character: number) => void;
     onCodeAction?: (line: number, character: number) => void;
+    signatureHelp?: (line: number, character: number) => Promise<SignatureHelp | null>;
     onInlineEdit?: (sel: { from: number; to: number; text: string }) => void;
     ghostComplete?: (
       params: { prefix: string; suffix: string; fileName: string },
@@ -207,6 +211,22 @@
     onTopLine(v.state.doc.lineAt(block.from).number);
   }
 
+  // Request signature help for the cursor; `clear` hides it (a ")" was typed).
+  function requestSignature(v: EditorView, clear: boolean) {
+    if (!signatureHelp) return;
+    if (clear) {
+      v.dispatch({ effects: setSignature.of(null) });
+      return;
+    }
+    const head = v.state.selection.main.head;
+    const ln = v.state.doc.lineAt(head);
+    void signatureHelp(ln.number - 1, head - ln.from).then((help) => {
+      if (!view) return;
+      const pos = view.state.selection.main.head;
+      view.dispatch({ effects: setSignature.of(help ? { pos, help } : null) });
+    });
+  }
+
   function makeState(buf: Buffer): EditorState {
     return EditorState.create({
       doc: buf.content,
@@ -233,6 +253,7 @@
               ),
             ]
           : []),
+        ...(signatureHelp ? signatureHelpExtension() : []),
         ...(onInlineEdit
           ? [
               keymap.of([
@@ -263,6 +284,13 @@
           }
           if (onTopLine && (u.docChanged || u.viewportChanged || u.geometryChanged)) {
             emitTopLine(u.view);
+          }
+          if (signatureHelp && u.docChanged) {
+            let typed = "";
+            u.changes.iterChanges((_fa, _ta, _fb, _tb, ins) => {
+              typed += ins.toString();
+            });
+            if (/[(),]/.test(typed)) requestSignature(u.view, typed.includes(")"));
           }
           if ((u.docChanged || u.selectionSet) && onCursor) {
             const sel = u.state.selection.main;
@@ -483,5 +511,18 @@
 
   .editor-host :global(.cm-debug-stop) {
     background: color-mix(in srgb, #d29922 22%, transparent);
+  }
+
+  .editor-host :global(.cm-signature) {
+    padding: 4px 8px;
+    font-family: var(--editor-font, "Cascadia Code", Consolas, monospace);
+    font-size: 12.5px;
+    max-width: 560px;
+    white-space: pre-wrap;
+  }
+
+  .editor-host :global(.cm-signature b) {
+    color: var(--accent);
+    font-weight: 600;
   }
 </style>
