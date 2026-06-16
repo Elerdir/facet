@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseDocumentSymbols, symbolKindName, symbolTrail } from "./symbols";
+import { parseDocumentSymbols, symbolKindName, symbolTrail, flattenSymbols } from "./symbols";
 
 describe("parseDocumentSymbols", () => {
   it("parses hierarchical DocumentSymbol with children", () => {
@@ -64,6 +64,27 @@ describe("symbolTrail", () => {
 
   it("returns [] when no symbol contains the line", () => {
     expect(symbolTrail(tree, 0)).toEqual([]);
+  });
+});
+
+describe("flattenSymbols", () => {
+  it("flattens depth-first with nesting depth", () => {
+    const tree = parseDocumentSymbols([
+      {
+        name: "A",
+        kind: 5,
+        range: { start: { line: 0, character: 0 }, end: { line: 9, character: 0 } },
+        children: [
+          { name: "m", kind: 6, range: { start: { line: 1, character: 0 } }, children: [] },
+        ],
+      },
+      { name: "B", kind: 12, range: { start: { line: 10, character: 0 } }, children: [] },
+    ]);
+    expect(flattenSymbols(tree)).toEqual([
+      { name: "A", kind: 5, line: 0, depth: 0 },
+      { name: "m", kind: 6, line: 1, depth: 1 },
+      { name: "B", kind: 12, line: 10, depth: 0 },
+    ]);
   });
 });
 

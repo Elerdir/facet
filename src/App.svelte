@@ -196,7 +196,10 @@
     if (!e.ctrlKey || e.altKey) return;
     const key = e.key.toLowerCase();
     if (e.shiftKey) {
-      if (key === "z") {
+      if (e.code === "Period") {
+        e.preventDefault();
+        void workspace.goToSymbol();
+      } else if (key === "z") {
         e.preventDefault();
         zen = !zen;
       } else if (key === "v") {
@@ -527,7 +530,7 @@
 
 {#if workspace.referencesUi.items}
   <Palette
-    placeholder="Reference…"
+    placeholder={workspace.referencesUi.placeholder}
     items={workspace.referencesUi.items.map((r, i) => ({ id: String(i), label: r.label }))}
     onPick={(id) => {
       const r = workspace.referencesUi.items?.[Number(id)];

@@ -232,6 +232,14 @@ describe("Workspace open flow", () => {
     expect(vcs.inits).toEqual(["/proj"]);
   });
 
+  it("does not open the symbol picker when there are no symbols", async () => {
+    const { fs, ws } = setup();
+    fs.files.set("/proj/notes.txt", "ahoj");
+    await ws.openPath("/proj/notes.txt");
+    await ws.goToSymbol();
+    expect(ws.referencesUi.items).toBeNull();
+  });
+
   it("toggles breakpoints for the active file", async () => {
     const { fs, ws } = setup();
     fs.files.set("/proj/app.py", "print(1)\nprint(2)\n");

@@ -6,12 +6,18 @@ export interface ReferenceItem {
   label: string;
 }
 
-/** Reactive holder for the references picker (rendered by the root view). */
+/**
+ * Reactive holder for the path/line location picker (rendered by the root
+ * view). Used by find-references and "go to symbol" — anything that resolves to
+ * a list of jump targets.
+ */
 export class ReferencesUiStore {
   items = $state<ReferenceItem[] | null>(null);
+  placeholder = $state("Reference…");
 
-  open(items: ReferenceItem[]): void {
+  open(items: ReferenceItem[], placeholder = "Reference…"): void {
     this.items = items;
+    this.placeholder = placeholder;
   }
 
   close(): void {
