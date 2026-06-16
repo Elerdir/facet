@@ -44,7 +44,8 @@ import { serializeSession, parseSession, type SessionData } from "../config/sess
 import { appConfigDir, join } from "@tauri-apps/api/path";
 import { isDirty, type Buffer } from "../domain/buffer";
 import { dirname, normalize, pathFromFileUri, relativeTo } from "../domain/paths";
-import { applyTextEdits } from "../lsp/edits";
+import { applyTextEdits, type LspWorkspaceEdit } from "../lsp/edits";
+import { CodeActionsUiStore } from "./codeActionsUi.svelte";
 import { serverForName, type ServerSpec } from "../lsp/servers";
 import { flattenSymbols } from "../lsp/symbols";
 import type { FileSystemPort } from "../ports/fileSystem";
@@ -92,6 +93,7 @@ export class Workspace {
   readonly editorStatus = new EditorStatusStore();
   readonly renameUi = new RenameUiStore();
   readonly referencesUi = new ReferencesUiStore();
+  readonly codeActionUi = new CodeActionsUiStore();
   readonly lsp: LspManager;
   readonly debug: DebugManager;
   readonly breakpoints = new BreakpointStore();
@@ -137,6 +139,7 @@ export class Workspace {
     this.formatter = new FormatterService(formatter);
     this.settings = new SettingsStore(fs, secrets);
     this.lsp = new LspManager(lsp);
+    this.lsp.applyEdit = async (edit) => (await this.#applyWorkspaceEdit(edit)) > 0;
     this.debug = new DebugManager(dap ?? NULL_DAP);
     this.ai = new AiChatStore(ai, this.settings);
     this.#fs = fs;
@@ -308,7 +311,11 @@ export class Workspace {
     if (!spec) return 0;
     const edit = await this.lsp.rename(spec, path, line, character, newName);
     if (!edit) return 0;
+    return this.#applyWorkspaceEdit(edit);
+  }
 
+  /** Apply an LSP workspace edit across buffers (opening closed files). */
+  async #applyWorkspaceEdit(edit: LspWorkspaceEdit): Promise<number> {
     let edited = 0;
     for (const [uri, edits] of Object.entries(edit.changes)) {
       const target = pathFromFileUri(uri);
@@ -323,6 +330,38 @@ export class Workspace {
       }
     }
     return edited;
+  }
+
+  /** Fetch code actions (quick fixes) for a position and open the picker. */
+  async requestCodeActions(path: string, line: number, character: number): Promise<void> {
+    const spec = this.settings.current.lspEnabled ? serverForName(path) : null;
+    if (!spec) return;
+    const diagnostics = this.lspDiagnostics(path).filter(
+      (d) => line >= d.line && line <= d.endLine,
+    );
+    const range = { startLine: line, startCharacter: character, endLine: line, endCharacter: character };
+    const actions = await this.lsp.codeActions(spec, path, range, diagnostics);
+    if (actions.length > 0) this.codeActionUi.open(actions, path);
+  }
+
+  /** Code actions for the active editor's cursor (command palette entry). */
+  requestCodeActionsAtCursor(): void {
+    const buf = this.activeBuffer();
+    if (!buf?.path) return;
+    void this.requestCodeActions(buf.path, this.editorStatus.line - 1, this.editorStatus.col - 1);
+  }
+
+  /** Apply the picked code action (its edit and/or its server command). */
+  async applyCodeAction(index: number): Promise<void> {
+    const item = this.codeActionUi.items?.[index];
+    const path = this.codeActionUi.path;
+    this.codeActionUi.close();
+    if (!item || !path) return;
+    if (item.edit) await this.#applyWorkspaceEdit(item.edit);
+    if (item.command) {
+      const spec = serverForName(path);
+      if (spec) await this.lsp.executeCommand(spec, item.command.command, item.command.arguments);
+    }
   }
 
   /** All file paths under the open folder (for fuzzy quick-open). */

@@ -232,6 +232,31 @@ describe("Workspace open flow", () => {
     expect(vcs.inits).toEqual(["/proj"]);
   });
 
+  it("applies a code action's workspace edit to a buffer", async () => {
+    const { fs, ws } = setup();
+    fs.files.set("/proj/a.ts", "const x=1");
+    await ws.openPath("/proj/a.ts");
+    ws.codeActionUi.open(
+      [
+        {
+          title: "const → let",
+          edit: {
+            changes: {
+              "file:///proj/a.ts": [
+                { startLine: 0, startCharacter: 0, endLine: 0, endCharacter: 5, newText: "let" },
+              ],
+            },
+          },
+        },
+      ],
+      "/proj/a.ts",
+    );
+    await ws.applyCodeAction(0);
+    const buf = ws.buffers.items.find((b) => b.path === "/proj/a.ts")!;
+    expect(buf.content).toBe("let x=1");
+    expect(ws.codeActionUi.items).toBeNull();
+  });
+
   it("does not open the symbol picker when there are no symbols", async () => {
     const { fs, ws } = setup();
     fs.files.set("/proj/notes.txt", "ahoj");

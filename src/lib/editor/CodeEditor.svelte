@@ -36,6 +36,7 @@
     onGotoDefinition,
     onFindReferences,
     onRenameRequest,
+    onCodeAction,
     onInlineEdit,
     ghostComplete,
     breakpointLines,
@@ -61,6 +62,7 @@
     onGotoDefinition?: (line: number, character: number) => void;
     onFindReferences?: (line: number, character: number) => void;
     onRenameRequest?: (line: number, character: number) => void;
+    onCodeAction?: (line: number, character: number) => void;
     onInlineEdit?: (sel: { from: number; to: number; text: string }) => void;
     ghostComplete?: (
       params: { prefix: string; suffix: string; fileName: string },
@@ -114,6 +116,15 @@
             if (!onRenameRequest) return false;
             const p = cursorPos(v);
             onRenameRequest(p.line, p.character);
+            return true;
+          },
+        },
+        {
+          key: "Mod-.",
+          run: (v) => {
+            if (!onCodeAction) return false;
+            const p = cursorPos(v);
+            onCodeAction(p.line, p.character);
             return true;
           },
         },
@@ -212,7 +223,7 @@
           : []),
         ...(lspComplete ? [lspCompletion(lspComplete)] : []),
         ...(lspHover ? [lspHoverTooltip(lspHover)] : []),
-        ...(onGotoDefinition || onFindReferences || onRenameRequest
+        ...(onGotoDefinition || onFindReferences || onRenameRequest || onCodeAction
           ? lspNavExtensions()
           : []),
         ...(ghostComplete

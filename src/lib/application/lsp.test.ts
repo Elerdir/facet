@@ -125,6 +125,79 @@ describe("LspManager", () => {
     expect(result[0].children[0]).toMatchObject({ name: "bar", line: 3 });
   });
 
+  it("requests code actions with diagnostics context and parses them", async () => {
+    const t = new FakeLspTransport();
+    const mgr = new LspManager(t);
+    const open = mgr.openDoc(spec, "/proj/a.ts", "typescript", "x", "/proj");
+    await initialized(t, open);
+
+    const p = mgr.codeActions(
+      spec,
+      "/proj/a.ts",
+      { startLine: 0, startCharacter: 0, endLine: 0, endCharacter: 1 },
+      [{ line: 0, character: 0, endLine: 0, endCharacter: 1, severity: 1, message: "oops" }],
+    );
+    await tick();
+    const req = t.sentMessages().find((m) => m.method === "textDocument/codeAction");
+    expect(req).toBeDefined();
+    expect((req!.params as { context: { diagnostics: unknown[] } }).context.diagnostics).toHaveLength(1);
+
+    t.deliver("ts", {
+      jsonrpc: "2.0",
+      id: req!.id,
+      result: [
+        {
+          title: "Fix it",
+          kind: "quickfix",
+          edit: {
+            changes: {
+              "file:///proj/a.ts": [
+                { range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } }, newText: "y" },
+              ],
+            },
+          },
+        },
+      ],
+    });
+
+    const actions = await p;
+    expect(actions[0]).toMatchObject({ title: "Fix it", kind: "quickfix" });
+    expect(actions[0].edit?.changes["file:///proj/a.ts"][0].newText).toBe("y");
+  });
+
+  it("applies a server-initiated workspace/applyEdit and confirms it", async () => {
+    const t = new FakeLspTransport();
+    const mgr = new LspManager(t);
+    const open = mgr.openDoc(spec, "/proj/a.ts", "typescript", "x", "/proj");
+    await initialized(t, open);
+
+    let received: unknown = null;
+    mgr.applyEdit = async (edit) => {
+      received = edit;
+      return true;
+    };
+    t.deliver("ts", {
+      jsonrpc: "2.0",
+      id: 999,
+      method: "workspace/applyEdit",
+      params: {
+        edit: {
+          changes: {
+            "file:///proj/a.ts": [
+              { range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } }, newText: "z" },
+            ],
+          },
+        },
+      },
+    });
+    await tick();
+
+    expect(received).not.toBeNull();
+    const resp = t.sentMessages().find((m) => m.id === 999);
+    expect(resp).toBeDefined();
+    expect((resp!.result as { applied: boolean }).applied).toBe(true);
+  });
+
   it("lists references from a Location[] response", async () => {
     const t = new FakeLspTransport();
     const mgr = new LspManager(t);

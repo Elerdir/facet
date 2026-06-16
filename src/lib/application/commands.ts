@@ -33,6 +33,7 @@ export function coreCommands(ws: Workspace, ui: UiActions): Command[] {
     { id: "file.open", title: "Otevřít soubor…", hint: "Ctrl+O", run: () => void ws.openFromDialog() },
     { id: "file.openFolder", title: "Otevřít složku…", run: () => void ws.openFolder() },
     { id: "file.save", title: "Uložit", hint: "Ctrl+S", run: () => void ws.saveActive() },
+    { id: "edit.codeAction", title: "Rychlé opravy / akce kódu…", hint: "Ctrl+.", run: () => ws.requestCodeActionsAtCursor() },
     { id: "edit.format", title: "Formátovat dokument", hint: "Ctrl+Shift+F", run: () => void ws.formatActive("format") },
     { id: "edit.organizeImports", title: "Organizovat importy", hint: "Ctrl+Shift+O", run: () => void ws.formatActive("organizeImports") },
     { id: "view.previewBeside", title: "Náhled vedle", hint: "Ctrl+Shift+V", run: () => ws.openPreviewBeside() },
