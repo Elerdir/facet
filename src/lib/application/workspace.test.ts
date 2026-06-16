@@ -258,6 +258,22 @@ describe("Workspace open flow", () => {
     expect(ws.codeActionUi.items).toBeNull();
   });
 
+  it("computes git change markers against HEAD", async () => {
+    const { ws, vcs } = setup();
+    vcs.repoStatus = { isRepo: true, branch: "main", files: [] };
+    await ws.vcs.refresh("/proj");
+    vcs.headContentResult = "a\nb\nc";
+    const markers = await ws.gitChangeMarkers("/proj/a.ts", "a\nB!\nc\nD");
+    expect(markers.get(2)).toBe("modified");
+    expect(markers.get(4)).toBe("added");
+  });
+
+  it("returns no change markers outside a repo", async () => {
+    const { ws } = setup();
+    const markers = await ws.gitChangeMarkers("/x.ts", "anything");
+    expect(markers.size).toBe(0);
+  });
+
   it("formats on save when the setting is enabled", async () => {
     const { fs, ws, formatter } = setup();
     formatter.result = "naformátováno\n";

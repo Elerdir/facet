@@ -213,6 +213,10 @@ export class FakeVcs implements VcsPort {
   async diffHead(): Promise<DiffRow[]> {
     return this.diffResult;
   }
+  headContentResult = "";
+  async headContent(): Promise<string> {
+    return this.headContentResult;
+  }
   async stage(_repo: string, file: string): Promise<void> {
     this.staged.push(file);
   }

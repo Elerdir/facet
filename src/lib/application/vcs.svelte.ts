@@ -70,6 +70,16 @@ export class VcsStore {
     this.blame = null;
   }
 
+  /** HEAD content of a file (absolute path), or null when not in a repo. */
+  async headContent(path: string): Promise<string | null> {
+    if (!this.repo) return null;
+    try {
+      return await this.#port.headContent(this.repo, relativeTo(this.repo, path));
+    } catch {
+      return null;
+    }
+  }
+
   async switchBranch(name: string): Promise<void> {
     if (!this.repo || name === this.branches.current) return;
     await this.#port.checkout(this.repo, name);

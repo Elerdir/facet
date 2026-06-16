@@ -5,6 +5,7 @@
   import HexView from "../hex/HexView.svelte";
   import Breadcrumbs from "../breadcrumbs/Breadcrumbs.svelte";
   import StickyScroll from "../sticky/StickyScroll.svelte";
+  import type { ChangeKind } from "../../domain/changeGutter";
   import { getWorkspace } from "../../application/context";
   import { serverForName } from "../../lsp/servers";
   import type { PaneLeaf } from "../../domain/layout";
@@ -13,6 +14,23 @@
   const ws = getWorkspace();
 
   let topLine = $state(1);
+  let changeMarkers = $state<Map<number, ChangeKind>>(new Map());
+  let cgTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // Diff the buffer against git HEAD for the change gutter (debounced).
+  $effect(() => {
+    const path = buffer?.path ?? null;
+    const content = buffer?.content ?? "";
+    void ws.vcs.repo;
+    if (cgTimer) clearTimeout(cgTimer);
+    if (!path || !ws.vcs.repo) {
+      changeMarkers = new Map();
+      return;
+    }
+    cgTimer = setTimeout(async () => {
+      changeMarkers = await ws.gitChangeMarkers(path, content);
+    }, 300);
+  });
 
   const buffer = $derived(
     leaf.activeTab ? (ws.buffers.get(leaf.activeTab) ?? null) : null,
@@ -82,6 +100,7 @@
         onFormatConsumed={() => ws.textFormat.consume()}
         {revealLine}
         {blame}
+        {changeMarkers}
         {lspDiagnostics}
         lspComplete={lspActive
           ? (line, ch) =>

@@ -19,6 +19,10 @@ export class TauriVcs implements VcsPort {
     return invoke<DiffRow[]>("git_diff_head", { repo, file });
   }
 
+  headContent(repo: string, file: string): Promise<string> {
+    return invoke<string>("git_head_content", { repo, file });
+  }
+
   stage(repo: string, file: string): Promise<void> {
     return invoke<void>("git_stage", { repo, file });
   }

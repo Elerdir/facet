@@ -15,6 +15,8 @@ import type { DiffRow } from "../domain/diff";
 export interface VcsPort {
   status(repo: string): Promise<RepoStatus>;
   diffHead(repo: string, file: string): Promise<DiffRow[]>;
+  /** Committed (HEAD) content of a file, or "" when untracked. */
+  headContent(repo: string, file: string): Promise<string>;
   stage(repo: string, file: string): Promise<void>;
   unstage(repo: string, file: string): Promise<void>;
   commit(repo: string, message: string): Promise<void>;

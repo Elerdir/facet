@@ -49,6 +49,7 @@ import { CodeActionsUiStore } from "./codeActionsUi.svelte";
 import { FileOpUiStore } from "./fileOpUi.svelte";
 import { serverForName, type ServerSpec } from "../lsp/servers";
 import { flattenSymbols } from "../lsp/symbols";
+import { changeMarkers, type ChangeKind } from "../domain/changeGutter";
 import type { FileSystemPort } from "../ports/fileSystem";
 import type { SearchMatch } from "../domain/search";
 import type { LspTransport } from "../ports/lsp";
@@ -208,6 +209,14 @@ export class Workspace {
   async signatureHelp(path: string, line: number, character: number) {
     const spec = this.settings.current.lspEnabled ? serverForName(path) : null;
     return spec ? this.lsp.signatureHelp(spec, path, line, character) : null;
+  }
+
+  /** Git change markers (added/modified/removed) for a file vs HEAD. */
+  async gitChangeMarkers(path: string, content: string): Promise<Map<number, ChangeKind>> {
+    if (!this.vcs.repo) return new Map();
+    const head = await this.vcs.headContent(path);
+    if (head === null) return new Map();
+    return changeMarkers(head, content);
   }
 
   async lspGotoDefinition(path: string, line: number, character: number): Promise<void> {

@@ -51,6 +51,7 @@ pub fn run() {
             history::history_prune,
             vcs::git_status,
             vcs::git_diff_head,
+            vcs::git_head_content,
             vcs::git_stage,
             vcs::git_unstage,
             vcs::git_commit,
