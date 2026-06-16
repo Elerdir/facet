@@ -155,6 +155,30 @@ export class FakeFileSystem implements FileSystemPort {
     }
     return out;
   }
+
+  async replaceInFiles(
+    root: string,
+    query: string,
+    replacement: string,
+    exclude: string[],
+  ): Promise<{ path: string; count: number }[]> {
+    const skip = new Set(exclude);
+    const re = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+    const out: { path: string; count: number }[] = [];
+    for (const [path, content] of this.files) {
+      if (!path.startsWith(root) || skip.has(path)) continue;
+      let count = 0;
+      const replaced = content.replace(re, () => {
+        count++;
+        return replacement;
+      });
+      if (count > 0) {
+        this.files.set(path, replaced);
+        out.push({ path, count });
+      }
+    }
+    return out;
+  }
 }
 
 /** In-memory HistoryPort for unit tests (mirrors the SQLite dedup behaviour). */

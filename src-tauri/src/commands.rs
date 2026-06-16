@@ -266,6 +266,67 @@ pub struct SearchMatch {
     text: String,
 }
 
+/// One file changed by a project-wide replace.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReplacedFile {
+    path: String,
+    count: usize,
+}
+
+/// Replace every case-insensitive literal occurrence of `query` with
+/// `replacement` across the project, skipping binaries, gitignored files and
+/// any path in `exclude` (handled in-memory by the caller). Returns the files
+/// it changed and how many replacements each got.
+#[tauri::command]
+pub fn replace_in_files(
+    root: String,
+    query: String,
+    replacement: String,
+    exclude: Vec<String>,
+) -> Result<Vec<ReplacedFile>, String> {
+    if query.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+    let re = RegexBuilder::new(&regex::escape(&query))
+        .case_insensitive(true)
+        .build()
+        .map_err(|e| e.to_string())?;
+    let skip: std::collections::HashSet<String> = exclude.into_iter().collect();
+
+    let mut out = Vec::new();
+    for entry in WalkBuilder::new(&root).require_git(false).build() {
+        let entry = match entry {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        if !entry.file_type().map(|t| t.is_file()).unwrap_or(false) {
+            continue;
+        }
+        let path = entry.path().to_string_lossy().into_owned();
+        if skip.contains(&path) {
+            continue;
+        }
+        let bytes = match fs::read(entry.path()) {
+            Ok(b) => b,
+            Err(_) => continue,
+        };
+        if detect::is_binary(&bytes[..bytes.len().min(8192)]) {
+            continue;
+        }
+        let text = String::from_utf8_lossy(&bytes);
+        let count = re.find_iter(&text).count();
+        if count == 0 {
+            continue;
+        }
+        let replaced = re.replace_all(&text, regex::NoExpand(replacement.as_str()));
+        if fs::write(entry.path(), replaced.as_bytes()).is_ok() {
+            out.push(ReplacedFile { path, count });
+        }
+    }
+    Ok(out)
+}
+
 /// Case-insensitive literal search across a folder, respecting .gitignore and
 /// skipping binary files. The query is matched literally (regex-escaped).
 #[tauri::command]
@@ -459,6 +520,24 @@ mod tests {
         assert!(matches.iter().any(|m| m.path.ends_with("a.txt") && m.line == 1));
         assert!(!matches.iter().any(|m| m.path.ends_with("b.log"))); // gitignored
         assert!(!matches.iter().any(|m| m.path.ends_with("c.bin"))); // binary
+    }
+
+    #[test]
+    fn replace_in_files_replaces_and_skips_excluded() {
+        let dir = tempdir().unwrap();
+        fs::write(dir.path().join("a.txt"), "foo Foo bar").unwrap();
+        fs::write(dir.path().join("b.txt"), "foo here").unwrap();
+        let root = dir.path().to_string_lossy().into_owned();
+        let excluded = dir.path().join("b.txt").to_string_lossy().into_owned();
+
+        let changed =
+            replace_in_files(root, "foo".into(), "X".into(), vec![excluded]).unwrap();
+
+        assert_eq!(changed.len(), 1);
+        assert!(changed[0].path.ends_with("a.txt"));
+        assert_eq!(changed[0].count, 2); // case-insensitive: foo + Foo
+        assert_eq!(fs::read_to_string(dir.path().join("a.txt")).unwrap(), "X X bar");
+        assert_eq!(fs::read_to_string(dir.path().join("b.txt")).unwrap(), "foo here"); // excluded
     }
 
     #[test]

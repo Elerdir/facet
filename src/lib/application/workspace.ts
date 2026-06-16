@@ -50,6 +50,7 @@ import { FileOpUiStore } from "./fileOpUi.svelte";
 import { serverForName, type ServerSpec } from "../lsp/servers";
 import { flattenSymbols } from "../lsp/symbols";
 import { changeMarkers, type ChangeKind } from "../domain/changeGutter";
+import { replaceAllLiteral } from "../domain/replace";
 import type { FileSystemPort } from "../ports/fileSystem";
 import type { SearchMatch } from "../domain/search";
 import type { LspTransport } from "../ports/lsp";
@@ -895,6 +896,57 @@ export class Workspace {
     const root = this.explorer.rootPath;
     if (!root || query.trim() === "") return [];
     return this.#fs.searchInFiles(root, query, maxResults);
+  }
+
+  /**
+   * Replace `query` → `replacement` (literal, case-insensitive) across the
+   * project. Dirty open buffers are replaced in-memory and saved (so unsaved
+   * work is honoured); the rest is replaced on disk and reloaded.
+   */
+  async replaceInProject(
+    query: string,
+    replacement: string,
+  ): Promise<{ files: number; total: number; cancelled?: boolean }> {
+    const root = this.explorer.rootPath;
+    if (!root || query === "") return { files: 0, total: 0 };
+    const ok = await this.#dialog.confirm(
+      `Nahradit „${query}" → „${replacement}" ve všech souborech projektu?`,
+    );
+    if (!ok) return { files: 0, total: 0, cancelled: true };
+
+    let files = 0;
+    let total = 0;
+    const exclude: string[] = [];
+
+    // 1. Open buffers with unsaved edits: replace in-memory, then save.
+    for (const buf of this.buffers.items) {
+      if (!buf.path || buf.binary) continue;
+      if (this.buffers.isDirty(buf)) {
+        exclude.push(buf.path);
+        const { result, count } = replaceAllLiteral(buf.content, query, replacement);
+        if (count > 0) {
+          this.setContent(buf.id, result);
+          await this.saveBuffer(buf.id);
+          files++;
+          total += count;
+        }
+      }
+    }
+
+    // 2. Everything else on disk.
+    const changed = await this.#fs.replaceInFiles(root, query, replacement, exclude);
+    const changedPaths = new Set(changed.map((c) => c.path));
+    for (const c of changed) {
+      files++;
+      total += c.count;
+    }
+
+    // 3. Refresh any open (clean) buffers whose file changed underneath them.
+    for (const buf of this.buffers.items) {
+      if (buf.path && changedPaths.has(buf.path)) await this.buffers.reloadFromDisk(buf.id);
+    }
+    if (this.vcs.repo) void this.vcs.refresh(this.vcs.repo);
+    return { files, total };
   }
 
   /** Open a file and request the editor to scroll to a line. */
