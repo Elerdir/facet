@@ -15,6 +15,7 @@ export interface Settings {
   editorMinimap: boolean;
   editorBreadcrumbs: boolean;
   editorStickyScroll: boolean;
+  formatOnSave: boolean;
   fileTemplates: CustomTemplate[];
   githubToken: string;
   gitlabToken: string;
@@ -47,6 +48,7 @@ export const DEFAULT_SETTINGS: Settings = {
   editorMinimap: true,
   editorBreadcrumbs: true,
   editorStickyScroll: true,
+  formatOnSave: false,
   fileTemplates: [],
   githubToken: "",
   gitlabToken: "",
@@ -111,6 +113,8 @@ export function parseSettings(raw: string): Settings {
       typeof r.editorStickyScroll === "boolean"
         ? r.editorStickyScroll
         : DEFAULT_SETTINGS.editorStickyScroll,
+    formatOnSave:
+      typeof r.formatOnSave === "boolean" ? r.formatOnSave : DEFAULT_SETTINGS.formatOnSave,
     fileTemplates: Array.isArray(r.fileTemplates)
       ? r.fileTemplates
           .filter((t): t is Record<string, unknown> => typeof t === "object" && t !== null)

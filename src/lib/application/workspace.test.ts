@@ -23,13 +23,14 @@ function setup() {
   const ai = new FakeAi();
   const github = new FakeGithub();
   const dap = new FakeDapTransport();
+  const formatter = new FakeFormatter();
   const ws = new Workspace(
     fs,
     dialog,
     history,
     new FakeDiff(),
     vcs,
-    new FakeFormatter(),
+    formatter,
     new FakeLspTransport(),
     ai,
     watcher,
@@ -37,7 +38,7 @@ function setup() {
     github,
     dap,
   );
-  return { fs, dialog, history, watcher, vcs, ai, github, dap, ws };
+  return { fs, dialog, history, watcher, vcs, ai, github, dap, formatter, ws };
 }
 
 describe("Workspace open flow", () => {
@@ -255,6 +256,28 @@ describe("Workspace open flow", () => {
     const buf = ws.buffers.items.find((b) => b.path === "/proj/a.ts")!;
     expect(buf.content).toBe("let x=1");
     expect(ws.codeActionUi.items).toBeNull();
+  });
+
+  it("formats on save when the setting is enabled", async () => {
+    const { fs, ws, formatter } = setup();
+    formatter.result = "naformátováno\n";
+    ws.settings.current.formatOnSave = true;
+    fs.files.set("/proj/a.rs", "fn main(){}");
+    await ws.openPath("/proj/a.rs");
+    const id = ws.layout.activeTabId!;
+    await ws.saveBuffer(id);
+    expect(ws.buffers.get(id)!.content).toBe("naformátováno\n");
+    expect(fs.files.get("/proj/a.rs")).toBe("naformátováno\n");
+  });
+
+  it("does not reformat on save when the setting is off", async () => {
+    const { fs, ws, formatter } = setup();
+    formatter.result = "naformátováno\n";
+    fs.files.set("/proj/b.rs", "fn main(){}");
+    await ws.openPath("/proj/b.rs");
+    const id = ws.layout.activeTabId!;
+    await ws.saveBuffer(id);
+    expect(ws.buffers.get(id)!.content).toBe("fn main(){}");
   });
 
   it("creates a new file and opens it", async () => {
