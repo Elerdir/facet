@@ -541,6 +541,19 @@
   />
 {/if}
 
+{#if workspace.codeActionUi.items}
+  <Palette
+    placeholder="Akce kódu (Quick Fix)…"
+    items={workspace.codeActionUi.items.map((a, i) => ({
+      id: String(i),
+      label: a.title,
+      hint: a.isPreferred ? "doporučeno" : a.kind,
+    }))}
+    onPick={(id) => void workspace.applyCodeAction(Number(id))}
+    onClose={() => workspace.codeActionUi.close()}
+  />
+{/if}
+
 <style>
   .app {
     height: 100vh;

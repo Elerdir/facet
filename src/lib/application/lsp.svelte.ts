@@ -2,7 +2,8 @@ import { encodeMessage, MessageBuffer, type JsonRpcMessage } from "../lsp/protoc
 import { fileUri } from "../domain/paths";
 import type { ServerSpec } from "../lsp/servers";
 import type { LspTransport } from "../ports/lsp";
-import type { LspLocation, LspTextEdit, LspWorkspaceEdit } from "../lsp/edits";
+import { parseWorkspaceEdit, type LspLocation, type LspWorkspaceEdit } from "../lsp/edits";
+import { parseCodeActions, type CodeActionItem } from "../lsp/codeActions";
 import { parseDocumentSymbols, type DocSymbol } from "../lsp/symbols";
 
 export interface LspDiagnostic {
@@ -48,6 +49,9 @@ class Connection {
 export class LspManager {
   /** Diagnostics keyed by file URI. */
   diagnostics = $state<Record<string, LspDiagnostic[]>>({});
+
+  /** Applies a server-initiated `workspace/applyEdit` (set by the Workspace). */
+  applyEdit: ((edit: LspWorkspaceEdit) => Promise<boolean>) | null = null;
 
   #transport: LspTransport;
   #conns = new Map<string, Connection>();
@@ -202,6 +206,45 @@ export class LspManager {
     return parseDocumentSymbols(res);
   }
 
+  async codeActions(
+    spec: ServerSpec,
+    path: string,
+    range: { startLine: number; startCharacter: number; endLine: number; endCharacter: number },
+    diagnostics: LspDiagnostic[],
+  ): Promise<CodeActionItem[]> {
+    const conn = this.#conns.get(spec.serverId);
+    if (!conn) return [];
+    await conn.ready;
+    const res = await this.#request(conn, "textDocument/codeAction", {
+      textDocument: { uri: fileUri(path) },
+      range: {
+        start: { line: range.startLine, character: range.startCharacter },
+        end: { line: range.endLine, character: range.endCharacter },
+      },
+      context: {
+        diagnostics: diagnostics.map((d) => ({
+          range: {
+            start: { line: d.line, character: d.character },
+            end: { line: d.endLine, character: d.endCharacter },
+          },
+          severity: d.severity,
+          message: d.message,
+        })),
+      },
+    });
+    return parseCodeActions(res);
+  }
+
+  async executeCommand(spec: ServerSpec, command: string, args: unknown[]): Promise<void> {
+    const conn = this.#conns.get(spec.serverId);
+    if (!conn) return;
+    await conn.ready;
+    await this.#request(conn, "workspace/executeCommand", {
+      command,
+      arguments: args,
+    });
+  }
+
   diagnosticsFor(path: string): LspDiagnostic[] {
     return this.diagnostics[fileUri(path)] ?? [];
   }
@@ -288,6 +331,20 @@ export class LspManager {
       return;
     }
 
+    // Server-initiated edit (e.g. applying a code action): apply and confirm.
+    if (id !== null && msg.method === "workspace/applyEdit") {
+      const params = msg.params as { edit?: unknown } | undefined;
+      const edit = parseWorkspaceEdit(params?.edit);
+      void (async () => {
+        const applied = edit && this.applyEdit ? await this.applyEdit(edit) : false;
+        void this.#transport.send(
+          conn.spec.serverId,
+          encodeMessage({ jsonrpc: "2.0", id, result: { applied } }),
+        );
+      })();
+      return;
+    }
+
     // Server → client request: answer null so the server doesn't block.
     if (id !== null && msg.method) {
       void this.#transport.send(
@@ -338,36 +395,3 @@ function parseLocation(res: unknown): LspLocation | null {
   return { uri, line: range.start.line, character: range.start.character };
 }
 
-function toTextEdit(e: Record<string, unknown>): LspTextEdit {
-  const r = (e.range as Required<LspRange>) ?? {
-    start: { line: 0, character: 0 },
-    end: { line: 0, character: 0 },
-  };
-  return {
-    startLine: r.start.line,
-    startCharacter: r.start.character,
-    endLine: r.end.line,
-    endCharacter: r.end.character,
-    newText: typeof e.newText === "string" ? e.newText : "",
-  };
-}
-
-function parseWorkspaceEdit(res: unknown): LspWorkspaceEdit | null {
-  if (!res || typeof res !== "object") return null;
-  const o = res as Record<string, unknown>;
-  const changes: Record<string, LspTextEdit[]> = {};
-
-  if (o.changes && typeof o.changes === "object") {
-    for (const [uri, edits] of Object.entries(o.changes as Record<string, unknown[]>)) {
-      changes[uri] = (edits as Record<string, unknown>[]).map(toTextEdit);
-    }
-  } else if (Array.isArray(o.documentChanges)) {
-    for (const dc of o.documentChanges as Record<string, unknown>[]) {
-      const td = dc.textDocument as { uri?: string } | undefined;
-      const edits = dc.edits as Record<string, unknown>[] | undefined;
-      if (td?.uri && edits) changes[td.uri] = edits.map(toTextEdit);
-    }
-  }
-
-  return Object.keys(changes).length > 0 ? { changes } : null;
-}

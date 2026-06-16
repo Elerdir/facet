@@ -19,6 +19,46 @@ export interface LspWorkspaceEdit {
   changes: Record<string, LspTextEdit[]>;
 }
 
+type RawRange = {
+  start: { line: number; character: number };
+  end?: { line: number; character: number };
+};
+
+function toTextEdit(e: Record<string, unknown>): LspTextEdit {
+  const r = (e.range as Required<RawRange>) ?? {
+    start: { line: 0, character: 0 },
+    end: { line: 0, character: 0 },
+  };
+  return {
+    startLine: r.start.line,
+    startCharacter: r.start.character,
+    endLine: (r.end ?? r.start).line,
+    endCharacter: (r.end ?? r.start).character,
+    newText: typeof e.newText === "string" ? e.newText : "",
+  };
+}
+
+/** Parse an LSP `WorkspaceEdit` (changes map or documentChanges) into our shape. */
+export function parseWorkspaceEdit(res: unknown): LspWorkspaceEdit | null {
+  if (!res || typeof res !== "object") return null;
+  const o = res as Record<string, unknown>;
+  const changes: Record<string, LspTextEdit[]> = {};
+
+  if (o.changes && typeof o.changes === "object") {
+    for (const [uri, edits] of Object.entries(o.changes as Record<string, unknown[]>)) {
+      changes[uri] = (edits as Record<string, unknown>[]).map(toTextEdit);
+    }
+  } else if (Array.isArray(o.documentChanges)) {
+    for (const dc of o.documentChanges as Record<string, unknown>[]) {
+      const td = dc.textDocument as { uri?: string } | undefined;
+      const edits = dc.edits as Record<string, unknown>[] | undefined;
+      if (td?.uri && edits) changes[td.uri] = edits.map(toTextEdit);
+    }
+  }
+
+  return Object.keys(changes).length > 0 ? { changes } : null;
+}
+
 function lineStarts(text: string): number[] {
   const starts = [0];
   for (let i = 0; i < text.length; i++) {

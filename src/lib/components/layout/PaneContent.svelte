@@ -106,6 +106,11 @@
               if (buffer?.path) ws.renameUi.open({ path: buffer.path, line, character: ch });
             }
           : undefined}
+        onCodeAction={lspActive
+          ? (line, ch) => {
+              if (buffer?.path) void ws.requestCodeActions(buffer.path, line, ch);
+            }
+          : undefined}
         ghostComplete={ws.settings.current.aiGhostCompletion &&
         ws.settings.current.aiApiKey.trim() !== ""
           ? (params, signal) =>
