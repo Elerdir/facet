@@ -54,6 +54,8 @@
   let aiOpen = $state(false);
   let terminalOpen = $state(false);
   let settingsOpen = $state(false);
+  let gotoLineOpen = $state(false);
+  let gotoLineValue = $state("");
   let zen = $state(false);
   let ctxMenu = $state<{ x: number; y: number } | null>(null);
   let palette = $state<"none" | "files" | "commands" | "newfile" | "encoding">("none");
@@ -142,6 +144,10 @@
       showDebug: () => {
         sidebarView = "debug";
         sidebarOpen = true;
+      },
+      openGotoLine: () => {
+        gotoLineValue = "";
+        gotoLineOpen = true;
       },
       toggleZen: () => (zen = !zen),
     }),
@@ -242,6 +248,11 @@
       case "h":
         e.preventDefault();
         historyOpen = !historyOpen;
+        break;
+      case "g":
+        e.preventDefault();
+        gotoLineValue = "";
+        gotoLineOpen = true;
         break;
       case "p":
         e.preventDefault();
@@ -516,6 +527,33 @@
   <FileOpModal />
 {/if}
 
+{#if gotoLineOpen}
+  <div class="gl-overlay">
+    <button class="gl-backdrop" aria-label="Zavřít" onclick={() => (gotoLineOpen = false)}></button>
+    <div class="gl-dialog" role="dialog" aria-modal="true">
+      <!-- svelte-ignore a11y_autofocus -->
+      <input
+        type="number"
+        min="1"
+        placeholder="Číslo řádku…"
+        bind:value={gotoLineValue}
+        autofocus
+        onkeydown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            const n = parseInt(gotoLineValue, 10);
+            if (n > 0) workspace.gotoLine(n);
+            gotoLineOpen = false;
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            gotoLineOpen = false;
+          }
+        }}
+      />
+    </div>
+  </div>
+{/if}
+
 {#if workspace.inlineEdit.target}
   <InlineEditPanel />
 {/if}
@@ -706,5 +744,49 @@
   .zen-exit:hover {
     opacity: 1;
     color: var(--fg);
+  }
+
+  .gl-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 110;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 14vh;
+  }
+
+  .gl-backdrop {
+    position: absolute;
+    inset: 0;
+    border: none;
+    background: rgba(0, 0, 0, 0.35);
+    cursor: default;
+  }
+
+  .gl-dialog {
+    position: relative;
+    width: min(320px, 90vw);
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+    padding: 12px;
+  }
+
+  .gl-dialog input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--fg);
+    padding: 9px 11px;
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+  }
+
+  .gl-dialog input:focus {
+    border-color: var(--accent);
   }
 </style>

@@ -2,6 +2,8 @@
   import { getWorkspace } from "../application/context";
   import { isDirty } from "../domain/buffer";
   import { extension } from "../domain/paths";
+  import { detectEol, detectIndent } from "../domain/textInfo";
+  import ContextMenu, { type MenuItem } from "./ContextMenu.svelte";
 
   let {
     onEncodingClick,
@@ -13,6 +15,20 @@
   const buf = $derived(activeId ? (ws.buffers.get(activeId) ?? null) : null);
   const lines = $derived(buf ? buf.content.split("\n").length : 0);
   const lang = $derived(buf ? extension(buf.name).toUpperCase() || "TEXT" : "");
+  const eol = $derived(buf ? detectEol(buf.content) : "lf");
+  const indent = $derived(buf ? detectIndent(buf.content) : null);
+
+  let indentMenu = $state<{ x: number; y: number } | null>(null);
+
+  function indentItems(): MenuItem[] {
+    return [
+      { header: true, label: "Odsazení" },
+      { label: "Mezery: 2", action: () => ws.setIndentation("spaces", 2) },
+      { label: "Mezery: 4", action: () => ws.setIndentation("spaces", 4) },
+      { label: "Tabulátory (2)", action: () => ws.setIndentation("tabs", 2) },
+      { label: "Tabulátory (4)", action: () => ws.setIndentation("tabs", 4) },
+    ];
+  }
 
   const problemCounts = $derived.by(() => {
     let err = 0;
@@ -41,11 +57,27 @@
     {#if buf.binary}
       <span>binární</span>
     {:else}
-      <span>Ř {ws.editorStatus.line}, Sl {ws.editorStatus.col}</span>
+      <button class="sb-btn" title="Přejít na řádek (Ctrl+G)" onclick={() => ws.gotoLine(ws.editorStatus.line)}>
+        Ř {ws.editorStatus.line}, Sl {ws.editorStatus.col}
+      </button>
       {#if ws.editorStatus.selection > 0}
         <span>{ws.editorStatus.selection} vybráno</span>
       {/if}
       <span>{lines} ř.</span>
+      <button
+        class="sb-btn"
+        title="Odsazení"
+        onclick={(e) => (indentMenu = { x: e.clientX, y: e.clientY })}
+      >
+        {indent?.kind === "tabs" ? "Tabulátory" : `Mezery: ${indent?.size ?? 2}`}
+      </button>
+      <button
+        class="sb-btn"
+        title="Přepnout konce řádků"
+        onclick={() => ws.setEol(eol === "lf" ? "crlf" : "lf")}
+      >
+        {eol === "crlf" ? "CRLF" : "LF"}
+      </button>
     {/if}
     <span>{lang}</span>
     <button class="encoding" title="Převést kódování…" onclick={onEncodingClick}>
@@ -56,6 +88,15 @@
     {/if}
   {/if}
 </div>
+
+{#if indentMenu}
+  <ContextMenu
+    x={indentMenu.x}
+    y={indentMenu.y}
+    items={indentItems()}
+    onClose={() => (indentMenu = null)}
+  />
+{/if}
 
 <style>
   .statusbar {
@@ -85,7 +126,8 @@
     color: var(--accent);
   }
 
-  .encoding {
+  .encoding,
+  .sb-btn {
     border: none;
     background: transparent;
     color: var(--fg-dim);
@@ -94,7 +136,8 @@
     padding: 0;
   }
 
-  .encoding:hover {
+  .encoding:hover,
+  .sb-btn:hover {
     color: var(--fg);
     text-decoration: underline;
   }

@@ -258,6 +258,28 @@ describe("Workspace open flow", () => {
     expect(ws.codeActionUi.items).toBeNull();
   });
 
+  it("converts EOL and indentation of the active buffer", async () => {
+    const { fs, ws } = setup();
+    fs.files.set("/proj/a.ts", "a\nb\n");
+    await ws.openPath("/proj/a.ts");
+    const id = ws.layout.activeTabId!;
+    ws.setEol("crlf");
+    expect(ws.buffers.get(id)!.content).toBe("a\r\nb\r\n");
+
+    fs.files.set("/proj/b.ts", "\tx");
+    await ws.openPath("/proj/b.ts");
+    ws.setIndentation("spaces", 2);
+    expect(ws.buffers.get(ws.layout.activeTabId!)!.content).toBe("  x");
+  });
+
+  it("requests a reveal when jumping to a line", async () => {
+    const { fs, ws } = setup();
+    fs.files.set("/proj/a.ts", "1\n2\n3\n4\n5");
+    await ws.openPath("/proj/a.ts");
+    ws.gotoLine(4);
+    expect(ws.layout.revealTarget).toMatchObject({ line: 4 });
+  });
+
   it("replaces across the project, honoring unsaved buffers", async () => {
     const { fs, ws } = setup();
     await ws.explorer.openFolder("/proj");

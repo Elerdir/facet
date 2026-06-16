@@ -51,6 +51,7 @@ import { serverForName, userServerForName, type ServerSpec } from "../lsp/server
 import { flattenSymbols } from "../lsp/symbols";
 import { changeMarkers, type ChangeKind } from "../domain/changeGutter";
 import { replaceAllLiteral } from "../domain/replace";
+import { convertEol, tabsToSpaces, spacesToTabs, type Eol } from "../domain/textInfo";
 import type { FileSystemPort } from "../ports/fileSystem";
 import type { SearchMatch } from "../domain/search";
 import type { LspTransport } from "../ports/lsp";
@@ -268,6 +269,27 @@ export class Workspace {
   activeBuffer(): Buffer | null {
     const id = this.layout.activeTabId;
     return id ? (this.buffers.get(id) ?? null) : null;
+  }
+
+  /** Scroll the active editor to a 1-based line. */
+  gotoLine(line: number): void {
+    const buf = this.activeBuffer();
+    if (buf && line > 0) this.layout.requestReveal(buf.id, line);
+  }
+
+  /** Convert the active buffer's line endings (LF/CRLF). */
+  setEol(eol: Eol): void {
+    const buf = this.activeBuffer();
+    if (buf && !buf.binary) this.setContent(buf.id, convertEol(buf.content, eol));
+  }
+
+  /** Convert the active buffer's indentation (tabs/spaces, given a unit size). */
+  setIndentation(kind: "tabs" | "spaces", size: number): void {
+    const buf = this.activeBuffer();
+    if (!buf || buf.binary) return;
+    const next =
+      kind === "spaces" ? tabsToSpaces(buf.content, size) : spacesToTabs(buf.content, size);
+    if (next !== buf.content) this.setContent(buf.id, next);
   }
 
   /** Toggle a breakpoint and, if a session is live, push the file's set. */

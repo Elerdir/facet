@@ -18,6 +18,7 @@ export interface UiActions {
   showProblems: () => void;
   showOutline: () => void;
   showDebug: () => void;
+  openGotoLine: () => void;
   showAi: () => void;
   openNewFile: () => void;
   toggleTerminal: () => void;
@@ -45,6 +46,7 @@ export function coreCommands(ws: Workspace, ui: UiActions): Command[] {
     { id: "view.scm", title: "Zobrazit změny (Git)", run: ui.showScm },
     { id: "view.problems", title: "Zobrazit problémy", run: ui.showProblems },
     { id: "view.outline", title: "Zobrazit osnovu (symboly)", run: ui.showOutline },
+    { id: "edit.gotoLine", title: "Přejít na řádek…", hint: "Ctrl+G", run: ui.openGotoLine },
     {
       id: "edit.gotoSymbol",
       title: "Přejít na symbol v souboru…",
