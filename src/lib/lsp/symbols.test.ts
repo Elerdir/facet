@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { parseDocumentSymbols, symbolKindName, symbolTrail, flattenSymbols } from "./symbols";
+import {
+  parseDocumentSymbols,
+  symbolKindName,
+  symbolTrail,
+  flattenSymbols,
+  parseWorkspaceSymbols,
+} from "./symbols";
 
 describe("parseDocumentSymbols", () => {
   it("parses hierarchical DocumentSymbol with children", () => {
@@ -85,6 +91,26 @@ describe("flattenSymbols", () => {
       { name: "m", kind: 6, line: 1, depth: 1 },
       { name: "B", kind: 12, line: 10, depth: 0 },
     ]);
+  });
+});
+
+describe("parseWorkspaceSymbols", () => {
+  it("parses SymbolInformation with location into path + line", () => {
+    const syms = parseWorkspaceSymbols([
+      {
+        name: "doThing",
+        kind: 12,
+        containerName: "utils",
+        location: { uri: "file:///proj/a.ts", range: { start: { line: 9, character: 0 } } },
+      },
+      { name: "noLoc" }, // dropped: no location
+    ]);
+    expect(syms).toHaveLength(1);
+    expect(syms[0]).toMatchObject({ name: "doThing", kind: 12, path: "/proj/a.ts", line: 9, container: "utils" });
+  });
+
+  it("returns [] for non-arrays", () => {
+    expect(parseWorkspaceSymbols(null)).toEqual([]);
   });
 });
 
