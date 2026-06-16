@@ -48,7 +48,7 @@ import { applyTextEdits, type LspWorkspaceEdit } from "../lsp/edits";
 import { CodeActionsUiStore } from "./codeActionsUi.svelte";
 import { FileOpUiStore } from "./fileOpUi.svelte";
 import { serverForName, userServerForName, type ServerSpec } from "../lsp/servers";
-import { flattenSymbols } from "../lsp/symbols";
+import { flattenSymbols, type WorkspaceSymbol } from "../lsp/symbols";
 import { changeMarkers, type ChangeKind } from "../domain/changeGutter";
 import { replaceAllLiteral } from "../domain/replace";
 import { convertEol, tabsToSpaces, spacesToTabs, type Eol } from "../domain/textInfo";
@@ -238,6 +238,12 @@ export class Workspace {
   async documentSymbols(path: string) {
     const spec = this.settings.current.lspEnabled ? this.serverFor(path) : null;
     return spec ? this.lsp.documentSymbols(spec, path) : [];
+  }
+
+  /** Search symbols across the whole project (Ctrl+T) via running LSP servers. */
+  async searchWorkspaceSymbols(query: string): Promise<WorkspaceSymbol[]> {
+    if (!this.settings.current.lspEnabled || query.trim() === "") return [];
+    return this.lsp.workspaceSymbols(query);
   }
 
   /** Open a "go to symbol in file" picker for the active buffer. */

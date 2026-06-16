@@ -1,5 +1,7 @@
 /** Pure parsing of LSP documentSymbol responses into a uniform tree. */
 
+import { pathFromFileUri } from "../domain/paths";
+
 export interface DocSymbol {
   name: string;
   kind: number;
@@ -106,4 +108,38 @@ const KIND_NAMES: Record<number, string> = {
 
 export function symbolKindName(kind: number): string {
   return KIND_NAMES[kind] ?? "Symbol";
+}
+
+/** A symbol from a `workspace/symbol` result (across the whole project). */
+export interface WorkspaceSymbol {
+  name: string;
+  kind: number;
+  /** Local filesystem path of the symbol's file. */
+  path: string;
+  /** 0-based line. */
+  line: number;
+  container?: string;
+}
+
+/** Parse a `workspace/symbol` result (array of SymbolInformation). */
+export function parseWorkspaceSymbols(res: unknown): WorkspaceSymbol[] {
+  if (!Array.isArray(res)) return [];
+  const out: WorkspaceSymbol[] = [];
+  for (const raw of res) {
+    if (!raw || typeof raw !== "object") continue;
+    const o = raw as Record<string, unknown>;
+    const loc = o.location as
+      | { uri?: string; range?: { start?: { line?: number } } }
+      | undefined;
+    const uri = typeof loc?.uri === "string" ? loc.uri : undefined;
+    if (!uri || typeof o.name !== "string") continue;
+    out.push({
+      name: o.name,
+      kind: typeof o.kind === "number" ? o.kind : 0,
+      path: pathFromFileUri(uri),
+      line: loc?.range?.start?.line ?? 0,
+      container: typeof o.containerName === "string" ? o.containerName : undefined,
+    });
+  }
+  return out;
 }

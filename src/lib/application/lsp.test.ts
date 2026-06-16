@@ -293,6 +293,33 @@ describe("LspManager", () => {
     ]);
   });
 
+  it("queries workspace symbols across a running server", async () => {
+    const t = new FakeLspTransport();
+    const mgr = new LspManager(t);
+    const open = mgr.openDoc(spec, "/proj/a.ts", "typescript", "x", "/proj");
+    await initialized(t, open);
+
+    const p = mgr.workspaceSymbols("doThing");
+    await tick();
+    const req = t.sentMessages().find((m) => m.method === "workspace/symbol");
+    expect(req).toBeDefined();
+    expect((req!.params as { query: string }).query).toBe("doThing");
+    t.deliver("ts", {
+      jsonrpc: "2.0",
+      id: req!.id,
+      result: [
+        {
+          name: "doThing",
+          kind: 12,
+          location: { uri: "file:///proj/b.ts", range: { start: { line: 2, character: 0 } } },
+        },
+      ],
+    });
+
+    const syms = await p;
+    expect(syms[0]).toMatchObject({ name: "doThing", path: "/proj/b.ts", line: 2 });
+  });
+
   it("sends incremental didChange notifications", async () => {
     const t = new FakeLspTransport();
     const mgr = new LspManager(t);

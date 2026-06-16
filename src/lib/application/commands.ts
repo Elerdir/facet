@@ -19,6 +19,7 @@ export interface UiActions {
   showOutline: () => void;
   showDebug: () => void;
   openGotoLine: () => void;
+  openWorkspaceSymbols: () => void;
   showAi: () => void;
   openNewFile: () => void;
   toggleTerminal: () => void;
@@ -52,6 +53,12 @@ export function coreCommands(ws: Workspace, ui: UiActions): Command[] {
       title: "Přejít na symbol v souboru…",
       hint: "Ctrl+Shift+.",
       run: () => void ws.goToSymbol(),
+    },
+    {
+      id: "edit.workspaceSymbol",
+      title: "Hledat symbol v projektu…",
+      hint: "Ctrl+T",
+      run: ui.openWorkspaceSymbols,
     },
     { id: "view.debug", title: "Zobrazit ladění", run: ui.showDebug },
     {

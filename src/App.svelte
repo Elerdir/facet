@@ -19,6 +19,7 @@
   import HunkStageModal from "./lib/components/vcs/HunkStageModal.svelte";
   import CloneModal from "./lib/components/vcs/CloneModal.svelte";
   import FileOpModal from "./lib/components/explorer/FileOpModal.svelte";
+  import WorkspaceSymbolModal from "./lib/components/symbols/WorkspaceSymbolModal.svelte";
   import ContextMenu, { type MenuItem } from "./lib/components/ContextMenu.svelte";
   import AiChatPanel from "./lib/components/ai/AiChatPanel.svelte";
   import InlineEditPanel from "./lib/components/ai/InlineEditPanel.svelte";
@@ -56,6 +57,7 @@
   let settingsOpen = $state(false);
   let gotoLineOpen = $state(false);
   let gotoLineValue = $state("");
+  let workspaceSymbolOpen = $state(false);
   let zen = $state(false);
   let ctxMenu = $state<{ x: number; y: number } | null>(null);
   let palette = $state<"none" | "files" | "commands" | "newfile" | "encoding">("none");
@@ -149,6 +151,7 @@
         gotoLineValue = "";
         gotoLineOpen = true;
       },
+      openWorkspaceSymbols: () => (workspaceSymbolOpen = true),
       toggleZen: () => (zen = !zen),
     }),
   );
@@ -253,6 +256,10 @@
         e.preventDefault();
         gotoLineValue = "";
         gotoLineOpen = true;
+        break;
+      case "t":
+        e.preventDefault();
+        workspaceSymbolOpen = true;
         break;
       case "p":
         e.preventDefault();
@@ -525,6 +532,10 @@
 
 {#if workspace.fileOpUi.op}
   <FileOpModal />
+{/if}
+
+{#if workspaceSymbolOpen}
+  <WorkspaceSymbolModal onClose={() => (workspaceSymbolOpen = false)} />
 {/if}
 
 {#if gotoLineOpen}

@@ -5,7 +5,12 @@ import type { LspTransport } from "../ports/lsp";
 import { parseWorkspaceEdit, type LspLocation, type LspWorkspaceEdit } from "../lsp/edits";
 import { parseCodeActions, type CodeActionItem } from "../lsp/codeActions";
 import { parseSignatureHelp, type SignatureHelp } from "../lsp/signatureHelp";
-import { parseDocumentSymbols, type DocSymbol } from "../lsp/symbols";
+import {
+  parseDocumentSymbols,
+  parseWorkspaceSymbols,
+  type DocSymbol,
+  type WorkspaceSymbol,
+} from "../lsp/symbols";
 
 export interface LspDiagnostic {
   line: number;
@@ -260,6 +265,21 @@ export class LspManager {
       command,
       arguments: args,
     });
+  }
+
+  /** Query `workspace/symbol` across every running server and merge results. */
+  async workspaceSymbols(query: string): Promise<WorkspaceSymbol[]> {
+    const out: WorkspaceSymbol[] = [];
+    for (const conn of this.#conns.values()) {
+      try {
+        await conn.ready;
+        const res = await this.#request(conn, "workspace/symbol", { query });
+        out.push(...parseWorkspaceSymbols(res));
+      } catch {
+        // server may not support workspace/symbol — skip it
+      }
+    }
+    return out;
   }
 
   diagnosticsFor(path: string): LspDiagnostic[] {
