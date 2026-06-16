@@ -13,6 +13,7 @@ export interface Settings {
   editorFontFamily: string;
   editorFontSize: number;
   editorMinimap: boolean;
+  editorBreadcrumbs: boolean;
   fileTemplates: CustomTemplate[];
   githubToken: string;
   gitlabToken: string;
@@ -43,6 +44,7 @@ export const DEFAULT_SETTINGS: Settings = {
   editorFontFamily: '"Cascadia Code", "JetBrains Mono", Consolas, monospace',
   editorFontSize: 13,
   editorMinimap: true,
+  editorBreadcrumbs: true,
   fileTemplates: [],
   githubToken: "",
   gitlabToken: "",
@@ -99,6 +101,10 @@ export function parseSettings(raw: string): Settings {
       typeof r.editorMinimap === "boolean"
         ? r.editorMinimap
         : DEFAULT_SETTINGS.editorMinimap,
+    editorBreadcrumbs:
+      typeof r.editorBreadcrumbs === "boolean"
+        ? r.editorBreadcrumbs
+        : DEFAULT_SETTINGS.editorBreadcrumbs,
     fileTemplates: Array.isArray(r.fileTemplates)
       ? r.fileTemplates
           .filter((t): t is Record<string, unknown> => typeof t === "object" && t !== null)
