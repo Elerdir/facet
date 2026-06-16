@@ -7,7 +7,8 @@
   import { lintGutter } from "@codemirror/lint";
   import { showMinimap } from "@replit/codemirror-minimap";
   import { resolveHighlighting, loadHighlightExtension } from "./highlighting";
-  import { lspCompletion, lspHoverTooltip, lspLinter } from "./lspExtensions";
+  import { completionExtension, lspHoverTooltip, lspLinter } from "./lspExtensions";
+  import type { SnippetConfig } from "../domain/snippets";
   import { breakpointExtensions } from "./breakpoints";
   import { signatureHelpExtension, setSignature } from "./signatureHelp";
   import { editorDecorations } from "./decorations";
@@ -39,6 +40,7 @@
     changeMarkers,
     lspDiagnostics,
     lspComplete,
+    snippets,
     lspHover,
     onGotoDefinition,
     onFindReferences,
@@ -68,6 +70,7 @@
     changeMarkers?: Map<number, ChangeKind>;
     lspDiagnostics?: LspDiagnostic[];
     lspComplete?: (line: number, character: number) => Promise<LspCompletionItem[]>;
+    snippets?: SnippetConfig[];
     lspHover?: (line: number, character: number) => Promise<string | null>;
     onGotoDefinition?: (line: number, character: number) => void;
     onFindReferences?: (line: number, character: number) => void;
@@ -277,7 +280,7 @@
         ...(lspDiagnostics !== undefined
           ? [lintComp.of(lspLinter(() => lspDiagnostics ?? [])), lintGutter()]
           : []),
-        ...(lspComplete ? [lspCompletion(lspComplete)] : []),
+        completionExtension({ snippets: snippets ?? [], lspComplete }),
         ...(lspHover ? [lspHoverTooltip(lspHover)] : []),
         ...(onGotoDefinition || onFindReferences || onRenameRequest || onCodeAction
           ? lspNavExtensions()
