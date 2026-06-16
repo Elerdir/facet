@@ -46,6 +46,22 @@ export class TauriFileSystem implements FileSystemPort {
     return invoke<TreeEntry[]>("read_dir", { path });
   }
 
+  createFile(path: string): Promise<void> {
+    return invoke<void>("create_file", { path });
+  }
+
+  createDir(path: string): Promise<void> {
+    return invoke<void>("create_dir", { path });
+  }
+
+  rename(from: string, to: string): Promise<void> {
+    return invoke<void>("rename_path", { from, to });
+  }
+
+  trash(path: string): Promise<void> {
+    return invoke<void>("trash_path", { path });
+  }
+
   listFiles(root: string, limit: number): Promise<string[]> {
     return invoke<string[]>("list_files", { root, limit });
   }

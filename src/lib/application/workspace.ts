@@ -43,9 +43,10 @@ import type { DapTransport } from "../ports/dap";
 import { serializeSession, parseSession, type SessionData } from "../config/session";
 import { appConfigDir, join } from "@tauri-apps/api/path";
 import { isDirty, type Buffer } from "../domain/buffer";
-import { dirname, normalize, pathFromFileUri, relativeTo } from "../domain/paths";
+import { basename, dirname, normalize, pathFromFileUri, relativeTo } from "../domain/paths";
 import { applyTextEdits, type LspWorkspaceEdit } from "../lsp/edits";
 import { CodeActionsUiStore } from "./codeActionsUi.svelte";
+import { FileOpUiStore } from "./fileOpUi.svelte";
 import { serverForName, type ServerSpec } from "../lsp/servers";
 import { flattenSymbols } from "../lsp/symbols";
 import type { FileSystemPort } from "../ports/fileSystem";
@@ -94,6 +95,7 @@ export class Workspace {
   readonly renameUi = new RenameUiStore();
   readonly referencesUi = new ReferencesUiStore();
   readonly codeActionUi = new CodeActionsUiStore();
+  readonly fileOpUi = new FileOpUiStore();
   readonly lsp: LspManager;
   readonly debug: DebugManager;
   readonly breakpoints = new BreakpointStore();
@@ -769,6 +771,98 @@ export class Workspace {
       }
     }
     this.#schedulePersist();
+  }
+
+  // --- Explorer file management --------------------------------------------
+
+  /** Join a directory and a name using the separator already in the path. */
+  #join(dir: string, name: string): string {
+    const sep = dir.includes("\\") ? "\\" : "/";
+    return dir.replace(/[\\/]+$/, "") + sep + name;
+  }
+
+  promptNewFile(dir: string): void {
+    this.fileOpUi.start({ kind: "newFile", dir }, "", "Název nového souboru");
+  }
+
+  promptNewFolder(dir: string): void {
+    this.fileOpUi.start({ kind: "newFolder", dir }, "", "Název nové složky");
+  }
+
+  promptRename(path: string, isDir: boolean): void {
+    this.fileOpUi.start({ kind: "rename", path, isDir }, basename(path), "Přejmenovat na");
+  }
+
+  /** Complete the pending file operation with the given name. */
+  async submitFileOp(name: string): Promise<void> {
+    const op = this.fileOpUi.op;
+    this.fileOpUi.close();
+    if (!op) return;
+    try {
+      if (op.kind === "newFile") {
+        const path = this.#join(op.dir, name);
+        await this.#fs.createFile(path);
+        await this.explorer.reloadPath(op.dir);
+        await this.openPath(path);
+      } else if (op.kind === "newFolder") {
+        await this.#fs.createDir(this.#join(op.dir, name));
+        await this.explorer.reloadPath(op.dir);
+      } else {
+        const parent = dirname(op.path);
+        const target = this.#join(parent, name);
+        await this.#fs.rename(op.path, target);
+        this.#reconcileRename(op.path, target, op.isDir);
+        await this.explorer.reloadPath(parent);
+      }
+    } catch (e) {
+      await this.#dialog.confirm(
+        `Operace se nezdařila: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
+  }
+
+  /** Move a file/folder to the recycle bin (after confirmation). */
+  async deleteEntry(path: string, isDir: boolean): Promise<void> {
+    const ok = await this.#dialog.confirm(
+      `Přesunout „${basename(path)}" do koše?`,
+    );
+    if (!ok) return;
+    await this.#fs.trash(path);
+    this.#reconcileDelete(path, isDir);
+    await this.explorer.reloadPath(dirname(path));
+  }
+
+  /** Update open buffers (and LSP) after a rename. */
+  #reconcileRename(oldPath: string, newPath: string, isDir: boolean): void {
+    for (const buf of this.buffers.items) {
+      if (!buf.path) continue;
+      let next: string | null = null;
+      if (!isDir && buf.path === oldPath) next = newPath;
+      else if (isDir && (buf.path.startsWith(oldPath + "/") || buf.path.startsWith(oldPath + "\\"))) {
+        next = newPath + buf.path.slice(oldPath.length);
+      }
+      if (next === null) continue;
+      const oldSpec = this.#lspSpec(buf);
+      if (oldSpec) this.lsp.closeDoc(oldSpec, buf.path);
+      buf.path = next;
+      buf.name = basename(next);
+      this.#lspOpen(buf);
+    }
+  }
+
+  /** Close open buffers (and LSP) for a deleted file/folder. */
+  #reconcileDelete(path: string, isDir: boolean): void {
+    for (const buf of this.buffers.items) {
+      if (!buf.path) continue;
+      const hit = isDir
+        ? buf.path.startsWith(path + "/") || buf.path.startsWith(path + "\\")
+        : buf.path === path;
+      if (!hit) continue;
+      const spec = this.#lspSpec(buf);
+      if (spec) this.lsp.closeDoc(spec, buf.path);
+      this.layout.closeTabEverywhere(buf.id);
+      this.buffers.close(buf.id);
+    }
   }
 
   /** Project-wide search in the open folder. */

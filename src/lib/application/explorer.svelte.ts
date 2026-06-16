@@ -49,6 +49,33 @@ export class ExplorerStore {
     if (this.rootPath) this.nodes = await this.#load(this.rootPath);
   }
 
+  /** Reload one directory's children in place (preserving the rest of the
+   * tree's expansion), or the whole root when the path is the root/unloaded. */
+  async reloadPath(dirPath: string | null): Promise<void> {
+    if (!dirPath || dirPath === this.rootPath) {
+      await this.refresh();
+      return;
+    }
+    const node = this.#find(this.nodes, dirPath);
+    if (node && node.entry.isDir) {
+      node.children = await this.#load(dirPath);
+      node.expanded = true;
+    } else {
+      await this.refresh();
+    }
+  }
+
+  #find(nodes: TreeNode[], path: string): TreeNode | null {
+    for (const n of nodes) {
+      if (n.entry.path === path) return n;
+      if (n.children) {
+        const hit = this.#find(n.children, path);
+        if (hit) return hit;
+      }
+    }
+    return null;
+  }
+
   async #load(path: string): Promise<TreeNode[]> {
     const entries = sortEntries(await this.#fs.readDir(path));
     return entries.map((entry) => ({

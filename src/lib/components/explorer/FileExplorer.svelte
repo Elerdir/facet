@@ -1,22 +1,77 @@
 <script lang="ts">
-  import { FolderOpen } from "@lucide/svelte";
+  import { FolderOpen, FilePlus, FolderPlus } from "@lucide/svelte";
   import { getWorkspace } from "../../application/context";
   import TreeNode from "./TreeNode.svelte";
+  import ContextMenu, { type MenuItem } from "../ContextMenu.svelte";
+  import type { TreeNode as Node } from "../../application/explorer.svelte";
+  import { dirname } from "../../domain/paths";
 
   const ws = getWorkspace();
+  let ctxMenu = $state<{ x: number; y: number; items: MenuItem[] } | null>(null);
+
+  function nodeItems(node: Node): MenuItem[] {
+    const path = node.entry.path;
+    const isDir = node.entry.isDir;
+    const parent = isDir ? path : dirname(path);
+    return [
+      { label: "Nový soubor…", action: () => ws.promptNewFile(parent) },
+      { label: "Nová složka…", action: () => ws.promptNewFolder(parent) },
+      { separator: true },
+      { label: "Přejmenovat…", action: () => ws.promptRename(path, isDir) },
+      { label: "Přesunout do koše", action: () => void ws.deleteEntry(path, isDir) },
+    ];
+  }
+
+  function openNodeMenu(node: Node, x: number, y: number) {
+    ctxMenu = { x, y, items: nodeItems(node) };
+  }
+
+  function openRootMenu(e: MouseEvent) {
+    const root = ws.explorer.rootPath;
+    if (!root) return;
+    e.preventDefault();
+    ctxMenu = {
+      x: e.clientX,
+      y: e.clientY,
+      items: [
+        { label: "Nový soubor…", action: () => ws.promptNewFile(root) },
+        { label: "Nová složka…", action: () => ws.promptNewFolder(root) },
+      ],
+    };
+  }
 </script>
 
 <div class="explorer">
   <div class="header">
     <span class="title">{ws.explorer.rootName || "Průzkumník"}</span>
+    {#if ws.explorer.rootPath}
+      <button
+        class="icon"
+        title="Nový soubor"
+        onclick={() => ws.explorer.rootPath && ws.promptNewFile(ws.explorer.rootPath)}
+      >
+        <FilePlus size={14} />
+      </button>
+      <button
+        class="icon"
+        title="Nová složka"
+        onclick={() => ws.explorer.rootPath && ws.promptNewFolder(ws.explorer.rootPath)}
+      >
+        <FolderPlus size={14} />
+      </button>
+    {/if}
     <button class="icon" title="Otevřít složku" onclick={() => ws.openFolder()}>
       <FolderOpen size={14} />
     </button>
   </div>
-  <div class="tree">
+  <div
+    class="tree"
+    role="presentation"
+    oncontextmenu={openRootMenu}
+  >
     {#if ws.explorer.rootPath}
       {#each ws.explorer.nodes as node (node.entry.path)}
-        <TreeNode {node} depth={0} />
+        <TreeNode {node} depth={0} onContext={openNodeMenu} />
       {/each}
     {:else}
       <button class="open-folder" onclick={() => ws.openFolder()}>
@@ -25,6 +80,10 @@
     {/if}
   </div>
 </div>
+
+{#if ctxMenu}
+  <ContextMenu x={ctxMenu.x} y={ctxMenu.y} items={ctxMenu.items} onClose={() => (ctxMenu = null)} />
+{/if}
 
 <style>
   .explorer {
@@ -37,6 +96,7 @@
   .header {
     display: flex;
     align-items: center;
+    gap: 2px;
     height: 32px;
     padding: 0 6px 0 10px;
     border-bottom: 1px solid var(--border);

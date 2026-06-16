@@ -90,6 +90,13 @@ export class LayoutStore {
     return L.tabRefCount(this.root, tabId);
   }
 
+  /** Remove a tab from every pane that shows it (e.g. its file was deleted). */
+  closeTabEverywhere(tabId: string): void {
+    for (const leaf of L.allLeaves(this.root)) {
+      if (leaf.tabs.includes(tabId)) this.closeTab(leaf.id, tabId);
+    }
+  }
+
   /** Move a tab between panes (or reorder within one); drag & drop. */
   moveTab(fromLeafId: string, tabId: string, toLeafId: string, toIndex?: number): void {
     const source = L.findLeaf(this.root, fromLeafId);

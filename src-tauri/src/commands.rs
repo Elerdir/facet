@@ -75,6 +75,36 @@ pub fn file_info(path: String) -> Result<FileInfo, String> {
     })
 }
 
+/// Create an empty file. Fails if a file or folder already exists at the path.
+#[tauri::command]
+pub fn create_file(path: String) -> Result<(), String> {
+    if std::path::Path::new(&path).exists() {
+        return Err("Soubor nebo složka už existuje".into());
+    }
+    fs::write(&path, b"").map_err(|e| format!("Nelze vytvořit soubor: {e}"))
+}
+
+/// Create a directory (and any missing parents).
+#[tauri::command]
+pub fn create_dir(path: String) -> Result<(), String> {
+    fs::create_dir_all(&path).map_err(|e| format!("Nelze vytvořit složku: {e}"))
+}
+
+/// Rename or move a file/folder. Fails if the target already exists.
+#[tauri::command]
+pub fn rename_path(from: String, to: String) -> Result<(), String> {
+    if std::path::Path::new(&to).exists() {
+        return Err("Cíl už existuje".into());
+    }
+    fs::rename(&from, &to).map_err(|e| format!("Nelze přejmenovat: {e}"))
+}
+
+/// Move a file/folder to the OS recycle bin (recoverable, not a hard delete).
+#[tauri::command]
+pub fn trash_path(path: String) -> Result<(), String> {
+    trash::delete(&path).map_err(|e| format!("Nelze přesunout do koše: {e}"))
+}
+
 /// Read a window of raw bytes from a file (for the hex view), returned as
 /// base64. Lets the UI page through huge files without loading them whole.
 #[tauri::command]
@@ -429,5 +459,24 @@ mod tests {
         assert!(matches.iter().any(|m| m.path.ends_with("a.txt") && m.line == 1));
         assert!(!matches.iter().any(|m| m.path.ends_with("b.log"))); // gitignored
         assert!(!matches.iter().any(|m| m.path.ends_with("c.bin"))); // binary
+    }
+
+    #[test]
+    fn create_file_and_dir_and_rename() {
+        let dir = tempdir().unwrap();
+        let file = dir.path().join("new.txt");
+        create_file(file.to_string_lossy().into()).unwrap();
+        assert!(file.exists());
+        // Creating over an existing path fails.
+        assert!(create_file(file.to_string_lossy().into()).is_err());
+
+        let sub = dir.path().join("sub/deep");
+        create_dir(sub.to_string_lossy().into()).unwrap();
+        assert!(sub.is_dir());
+
+        let renamed = dir.path().join("renamed.txt");
+        rename_path(file.to_string_lossy().into(), renamed.to_string_lossy().into()).unwrap();
+        assert!(!file.exists());
+        assert!(renamed.exists());
     }
 }

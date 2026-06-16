@@ -257,6 +257,44 @@ describe("Workspace open flow", () => {
     expect(ws.codeActionUi.items).toBeNull();
   });
 
+  it("creates a new file and opens it", async () => {
+    const { fs, ws } = setup();
+    ws.promptNewFile("/proj");
+    await ws.submitFileOp("new.ts");
+    expect(fs.files.has("/proj/new.ts")).toBe(true);
+    expect(ws.activeBuffer()?.path).toBe("/proj/new.ts");
+  });
+
+  it("renames a file and updates the open buffer", async () => {
+    const { fs, ws } = setup();
+    fs.files.set("/proj/a.ts", "x");
+    await ws.openPath("/proj/a.ts");
+    ws.promptRename("/proj/a.ts", false);
+    await ws.submitFileOp("b.ts");
+    expect(fs.files.has("/proj/b.ts")).toBe(true);
+    expect(fs.files.has("/proj/a.ts")).toBe(false);
+    const buf = ws.buffers.items.find((b) => b.path === "/proj/b.ts");
+    expect(buf?.name).toBe("b.ts");
+  });
+
+  it("deletes a file to the recycle bin and closes its buffer", async () => {
+    const { fs, ws } = setup();
+    fs.files.set("/proj/c.ts", "y");
+    await ws.openPath("/proj/c.ts");
+    const id = ws.layout.activeTabId!;
+    await ws.deleteEntry("/proj/c.ts", false);
+    expect(fs.files.has("/proj/c.ts")).toBe(false);
+    expect(ws.buffers.get(id) ?? null).toBeNull();
+  });
+
+  it("does not delete when the confirm dialog is declined", async () => {
+    const { fs, dialog, ws } = setup();
+    dialog.confirmResult = false;
+    fs.files.set("/proj/keep.ts", "z");
+    await ws.deleteEntry("/proj/keep.ts", false);
+    expect(fs.files.has("/proj/keep.ts")).toBe(true);
+  });
+
   it("does not open the symbol picker when there are no symbols", async () => {
     const { fs, ws } = setup();
     fs.files.set("/proj/notes.txt", "ahoj");

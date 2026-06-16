@@ -4,7 +4,15 @@
   import type { TreeNode } from "../../application/explorer.svelte";
   import Self from "./TreeNode.svelte";
 
-  let { node, depth }: { node: TreeNode; depth: number } = $props();
+  let {
+    node,
+    depth,
+    onContext,
+  }: {
+    node: TreeNode;
+    depth: number;
+    onContext: (node: TreeNode, x: number, y: number) => void;
+  } = $props();
   const ws = getWorkspace();
 
   function activate() {
@@ -19,6 +27,11 @@
   role="button"
   tabindex="0"
   onclick={activate}
+  oncontextmenu={(e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onContext(node, e.clientX, e.clientY);
+  }}
   onkeydown={(e) => e.key === "Enter" && activate()}
 >
   {#if node.entry.isDir}
@@ -37,7 +50,7 @@
 
 {#if node.entry.isDir && node.expanded && node.children}
   {#each node.children as child (child.entry.path)}
-    <Self node={child} depth={depth + 1} />
+    <Self node={child} depth={depth + 1} {onContext} />
   {/each}
 {/if}
 

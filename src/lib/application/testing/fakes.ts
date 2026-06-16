@@ -79,6 +79,59 @@ export class FakeFileSystem implements FileSystemPort {
     return this.dirs.get(path) ?? [];
   }
 
+  #parent(path: string): string {
+    return path.replace(/[\\/]+$/, "").replace(/[\\/][^\\/]+$/, "");
+  }
+
+  #name(path: string): string {
+    return path.replace(/[\\/]+$/, "").split(/[\\/]/).pop() ?? path;
+  }
+
+  #addEntry(path: string, isDir: boolean): void {
+    const parent = this.#parent(path);
+    const list = this.dirs.get(parent) ?? [];
+    if (!list.some((e) => e.path === path)) {
+      list.push({ name: this.#name(path), path, isDir });
+      this.dirs.set(parent, list);
+    }
+  }
+
+  #removeEntry(path: string): void {
+    const parent = this.#parent(path);
+    const list = this.dirs.get(parent);
+    if (list) this.dirs.set(parent, list.filter((e) => e.path !== path));
+  }
+
+  async createFile(path: string): Promise<void> {
+    if (this.files.has(path) || this.dirs.has(path)) throw new Error("už existuje");
+    this.files.set(path, "");
+    this.#addEntry(path, false);
+  }
+
+  async createDir(path: string): Promise<void> {
+    this.dirs.set(path, this.dirs.get(path) ?? []);
+    this.#addEntry(path, true);
+  }
+
+  async rename(from: string, to: string): Promise<void> {
+    if (this.files.has(from)) {
+      this.files.set(to, this.files.get(from)!);
+      this.files.delete(from);
+      this.#addEntry(to, false);
+    } else if (this.dirs.has(from)) {
+      this.dirs.set(to, this.dirs.get(from)!);
+      this.dirs.delete(from);
+      this.#addEntry(to, true);
+    }
+    this.#removeEntry(from);
+  }
+
+  async trash(path: string): Promise<void> {
+    this.files.delete(path);
+    this.dirs.delete(path);
+    this.#removeEntry(path);
+  }
+
   async listFiles(root: string, limit: number): Promise<string[]> {
     return [...this.files.keys()]
       .filter((p) => p.startsWith(root))
