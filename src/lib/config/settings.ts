@@ -1,4 +1,5 @@
 import { DEFAULT_AI_MODEL, isKnownAiModel } from "../domain/ai";
+import { isKnownEditorTheme } from "../domain/editorThemes";
 import type { CustomTemplate } from "../domain/newFileTemplates";
 
 export interface Settings {
@@ -6,6 +7,7 @@ export interface Settings {
   autosaveSeconds: number;
   historyRetentionDays: number;
   theme: "dark" | "light";
+  editorTheme: string;
   lspEnabled: boolean;
   aiApiKey: string;
   aiModel: string;
@@ -39,6 +41,7 @@ export const DEFAULT_SETTINGS: Settings = {
   autosaveSeconds: 30,
   historyRetentionDays: 7,
   theme: "dark",
+  editorTheme: "default",
   lspEnabled: true,
   aiApiKey: "",
   aiModel: DEFAULT_AI_MODEL,
@@ -85,6 +88,10 @@ export function parseSettings(raw: string): Settings {
       DEFAULT_SETTINGS.historyRetentionDays,
     ),
     theme: r.theme === "light" ? "light" : "dark",
+    editorTheme:
+      typeof r.editorTheme === "string" && isKnownEditorTheme(r.editorTheme)
+        ? r.editorTheme
+        : DEFAULT_SETTINGS.editorTheme,
     lspEnabled:
       typeof r.lspEnabled === "boolean" ? r.lspEnabled : DEFAULT_SETTINGS.lspEnabled,
     aiApiKey: typeof r.aiApiKey === "string" ? r.aiApiKey : DEFAULT_SETTINGS.aiApiKey,

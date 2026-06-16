@@ -9,6 +9,7 @@ describe("parseSettings", () => {
         autosaveSeconds: 60,
         historyRetentionDays: 14,
         theme: "light",
+        editorTheme: "dracula",
         lspEnabled: false,
         aiApiKey: "sk-ant-test",
         aiModel: "claude-haiku-4-5",
@@ -30,6 +31,7 @@ describe("parseSettings", () => {
       autosaveSeconds: 60,
       historyRetentionDays: 14,
       theme: "light",
+      editorTheme: "dracula",
       lspEnabled: false,
       aiApiKey: "sk-ant-test",
       aiModel: "claude-haiku-4-5",
@@ -78,5 +80,9 @@ describe("parseSettings", () => {
 
   it("ignores unknown theme values", () => {
     expect(parseSettings(JSON.stringify({ theme: "neon" })).theme).toBe("dark");
+  });
+
+  it("falls back to the default editor theme for unknown ids", () => {
+    expect(parseSettings(JSON.stringify({ editorTheme: "made-up" })).editorTheme).toBe("default");
   });
 });

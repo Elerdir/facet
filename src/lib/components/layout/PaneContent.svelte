@@ -93,6 +93,7 @@
           <CodeEditor
         {buffer}
         theme={ws.settings.current.theme}
+        editorTheme={ws.settings.current.editorTheme}
         fontFamily={ws.settings.current.editorFontFamily}
         fontSize={ws.settings.current.editorFontSize}
         minimap={ws.settings.current.editorMinimap}

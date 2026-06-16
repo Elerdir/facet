@@ -11,6 +11,7 @@
   import { breakpointExtensions } from "./breakpoints";
   import { signatureHelpExtension, setSignature } from "./signatureHelp";
   import { editorDecorations } from "./decorations";
+  import { loadEditorTheme } from "./themes";
   import { ghostCompletion } from "./ghostCompletion";
   import type { SignatureHelp } from "../lsp/signatureHelp";
   import { LARGE_TEXT_BYTES } from "../domain/fileInfo";
@@ -27,6 +28,7 @@
     buffer,
     onInput,
     theme = "dark",
+    editorTheme = "default",
     fontFamily = '"Cascadia Code", "JetBrains Mono", Consolas, monospace',
     fontSize = 13,
     minimap = false,
@@ -55,6 +57,7 @@
     buffer: Buffer | null;
     onInput: (text: string) => void;
     theme?: "dark" | "light";
+    editorTheme?: string;
     fontFamily?: string;
     fontSize?: number;
     minimap?: boolean;
@@ -404,14 +407,18 @@
     }
   });
 
-  // Live-swap the editor theme when the setting changes.
+  // Live-swap the editor theme when the app theme or chosen theme changes.
+  // `thememirror` themes are loaded lazily, so this resolves asynchronously.
   $effect(() => {
-    const t = theme;
-    if (view) {
-      view.dispatch({
-        effects: themeComp.reconfigure(t === "dark" ? oneDark : []),
-      });
-    }
+    const id = editorTheme;
+    const app = theme;
+    let cancelled = false;
+    void loadEditorTheme(id, app).then((ext) => {
+      if (!cancelled && view) view.dispatch({ effects: themeComp.reconfigure(ext) });
+    });
+    return () => {
+      cancelled = true;
+    };
   });
 
   // Toggle the minimap when the setting changes.
