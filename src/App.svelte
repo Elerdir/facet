@@ -207,6 +207,7 @@
         break;
       }
       case "edit.gotoLine": gotoLineValue = ""; gotoLineOpen = true; break;
+      case "edit.reopenClosed": void workspace.reopenClosedTab(); break;
       case "edit.workspaceSymbol": workspaceSymbolOpen = true; break;
       case "edit.gotoSymbol": void workspace.goToSymbol(); break;
       case "view.zen": zen = !zen; break;

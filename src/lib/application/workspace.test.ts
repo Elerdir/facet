@@ -378,6 +378,29 @@ describe("Workspace open flow", () => {
     expect(ws.buffers.get(id)!.content).toBe("fn main(){}");
   });
 
+  it("reopens the most recently closed file", async () => {
+    const { fs, ws } = setup();
+    fs.files.set("/proj/a.ts", "A");
+    fs.files.set("/proj/b.ts", "B");
+    await ws.openPath("/proj/a.ts");
+    await ws.openPath("/proj/b.ts");
+    const leaf = ws.layout.activeLeaf;
+    await ws.closeTab(leaf.id, leaf.activeTab!);
+    await ws.reopenClosedTab();
+    expect(ws.activeBuffer()?.path).toBe("/proj/b.ts");
+  });
+
+  it("pins and unpins a tab", async () => {
+    const { fs, ws } = setup();
+    fs.files.set("/proj/a.ts", "A");
+    await ws.openPath("/proj/a.ts");
+    const id = ws.layout.activeTabId!;
+    ws.layout.togglePin(id);
+    expect(ws.layout.isPinned(id)).toBe(true);
+    ws.layout.togglePin(id);
+    expect(ws.layout.isPinned(id)).toBe(false);
+  });
+
   it("creates a new file and opens it", async () => {
     const { fs, ws } = setup();
     ws.promptNewFile("/proj");

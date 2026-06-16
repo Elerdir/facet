@@ -1,11 +1,29 @@
 <script lang="ts">
-  import { X } from "@lucide/svelte";
+  import { X, Pin } from "@lucide/svelte";
   import { getWorkspace } from "../application/context";
   import { isDirty } from "../domain/buffer";
+  import ContextMenu, { type MenuItem } from "./ContextMenu.svelte";
   import type { PaneLeaf } from "../domain/layout";
 
   let { leaf }: { leaf: PaneLeaf } = $props();
   const ws = getWorkspace();
+
+  // Pinned tabs render first (stable within each group).
+  const orderedTabs = $derived(
+    [...leaf.tabs].sort((a, b) => Number(ws.layout.isPinned(b)) - Number(ws.layout.isPinned(a))),
+  );
+
+  let ctxMenu = $state<{ x: number; y: number; tabId: string } | null>(null);
+
+  function tabMenu(tabId: string): MenuItem[] {
+    return [
+      {
+        label: ws.layout.isPinned(tabId) ? "Odepnout" : "Připnout",
+        action: () => ws.layout.togglePin(tabId),
+      },
+      { label: "Zavřít", action: () => void ws.closeTab(leaf.id, tabId) },
+    ];
+  }
 </script>
 
 <div
@@ -27,15 +45,20 @@
     }
   }}
 >
-  {#each leaf.tabs as tabId, tabIndex (tabId)}
+  {#each orderedTabs as tabId, tabIndex (tabId)}
     {@const buf = ws.buffers.get(tabId)}
     {#if buf}
       <div
         class="tab"
         class:active={tabId === leaf.activeTab}
+        class:pinned={ws.layout.isPinned(tabId)}
         role="button"
         tabindex="0"
         title={buf.path ?? buf.name}
+        oncontextmenu={(e) => {
+          e.preventDefault();
+          ctxMenu = { x: e.clientX, y: e.clientY, tabId };
+        }}
         draggable="true"
         ondragstart={(e) => {
           e.dataTransfer?.setData(
@@ -75,20 +98,42 @@
         {#if isDirty(buf)}
           <span class="dirty" title="Neuložené změny">●</span>
         {/if}
-        <button
-          class="close"
-          title="Zavřít (Ctrl+W)"
-          onclick={(e) => {
-            e.stopPropagation();
-            ws.closeTab(leaf.id, tabId);
-          }}
-        >
-          <X size={12} />
-        </button>
+        {#if ws.layout.isPinned(tabId)}
+          <button
+            class="close pin"
+            title="Odepnout"
+            onclick={(e) => {
+              e.stopPropagation();
+              ws.layout.togglePin(tabId);
+            }}
+          >
+            <Pin size={11} />
+          </button>
+        {:else}
+          <button
+            class="close"
+            title="Zavřít (Ctrl+W)"
+            onclick={(e) => {
+              e.stopPropagation();
+              ws.closeTab(leaf.id, tabId);
+            }}
+          >
+            <X size={12} />
+          </button>
+        {/if}
       </div>
     {/if}
   {/each}
 </div>
+
+{#if ctxMenu}
+  <ContextMenu
+    x={ctxMenu.x}
+    y={ctxMenu.y}
+    items={tabMenu(ctxMenu.tabId)}
+    onClose={() => (ctxMenu = null)}
+  />
+{/if}
 
 <style>
   .tabbar {
@@ -126,6 +171,14 @@
     background: var(--bg);
     color: var(--fg);
     box-shadow: inset 0 -2px 0 var(--accent);
+  }
+
+  .tab.pinned .name {
+    font-style: italic;
+  }
+
+  .close.pin {
+    color: var(--accent);
   }
 
   .name {
