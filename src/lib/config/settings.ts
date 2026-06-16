@@ -24,6 +24,9 @@ export interface Settings {
   editorMinimap: boolean;
   editorBreadcrumbs: boolean;
   editorStickyScroll: boolean;
+  editorRenderWhitespace: boolean;
+  editorInlayHints: boolean;
+  editorDocHighlight: boolean;
   formatOnSave: boolean;
   fileTemplates: CustomTemplate[];
   githubToken: string;
@@ -61,6 +64,9 @@ export const DEFAULT_SETTINGS: Settings = {
   editorMinimap: true,
   editorBreadcrumbs: true,
   editorStickyScroll: true,
+  editorRenderWhitespace: false,
+  editorInlayHints: true,
+  editorDocHighlight: true,
   formatOnSave: false,
   fileTemplates: [],
   githubToken: "",
@@ -77,6 +83,9 @@ export const PROJECT_OVERRIDABLE_KEYS = [
   "editorMinimap",
   "editorBreadcrumbs",
   "editorStickyScroll",
+  "editorRenderWhitespace",
+  "editorInlayHints",
+  "editorDocHighlight",
   "formatOnSave",
   "lspEnabled",
   "lspServers",
@@ -171,6 +180,18 @@ export function parseSettings(raw: string): Settings {
       typeof r.editorStickyScroll === "boolean"
         ? r.editorStickyScroll
         : DEFAULT_SETTINGS.editorStickyScroll,
+    editorRenderWhitespace:
+      typeof r.editorRenderWhitespace === "boolean"
+        ? r.editorRenderWhitespace
+        : DEFAULT_SETTINGS.editorRenderWhitespace,
+    editorInlayHints:
+      typeof r.editorInlayHints === "boolean"
+        ? r.editorInlayHints
+        : DEFAULT_SETTINGS.editorInlayHints,
+    editorDocHighlight:
+      typeof r.editorDocHighlight === "boolean"
+        ? r.editorDocHighlight
+        : DEFAULT_SETTINGS.editorDocHighlight,
     formatOnSave:
       typeof r.formatOnSave === "boolean" ? r.formatOnSave : DEFAULT_SETTINGS.formatOnSave,
     fileTemplates: Array.isArray(r.fileTemplates)

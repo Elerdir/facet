@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { EditorView, keymap, gutter, GutterMarker } from "@codemirror/view";
+  import { EditorView, keymap, gutter, GutterMarker, highlightWhitespace } from "@codemirror/view";
   import { EditorState, Compartment } from "@codemirror/state";
   import { basicSetup } from "codemirror";
   import { indentWithTab } from "@codemirror/commands";
@@ -36,6 +36,7 @@
     fontFamily = '"Cascadia Code", "JetBrains Mono", Consolas, monospace',
     fontSize = 13,
     minimap = false,
+    renderWhitespace = false,
     formatRequest = null,
     onFormatConsumed,
     revealLine,
@@ -68,6 +69,7 @@
     fontFamily?: string;
     fontSize?: number;
     minimap?: boolean;
+    renderWhitespace?: boolean;
     formatRequest?: { kind: TextFormatKind; seq: number } | null;
     onFormatConsumed?: () => void;
     revealLine?: number;
@@ -227,6 +229,7 @@
   const changeComp = new Compartment();
   const lintComp = new Compartment();
   const minimapComp = new Compartment();
+  const wsComp = new Compartment();
   const bpComp = new Compartment();
 
   function bpExtension() {
@@ -312,6 +315,7 @@
         changeComp.of(changeExtension()),
         bpComp.of(bpExtension()),
         minimapComp.of(minimapExtension()),
+        wsComp.of(renderWhitespace ? highlightWhitespace() : []),
         ...(lspDiagnostics !== undefined
           ? [lintComp.of(lspLinter(() => lspDiagnostics ?? [])), lintGutter()]
           : []),
@@ -468,6 +472,14 @@
     void minimap;
     if (view) {
       view.dispatch({ effects: minimapComp.reconfigure(minimapExtension()) });
+    }
+  });
+
+  // Toggle whitespace rendering when the setting changes.
+  $effect(() => {
+    const on = renderWhitespace;
+    if (view) {
+      view.dispatch({ effects: wsComp.reconfigure(on ? highlightWhitespace() : []) });
     }
   });
 

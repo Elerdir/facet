@@ -422,6 +422,34 @@
         <label class="row">
           <input
             type="checkbox"
+            checked={s.editorRenderWhitespace}
+            onchange={(e) =>
+              ws.settings.update({ editorRenderWhitespace: e.currentTarget.checked })}
+          />
+          <span>Zobrazit bílé znaky (mezery/tabulátory)</span>
+        </label>
+
+        <label class="row">
+          <input
+            type="checkbox"
+            checked={s.editorInlayHints}
+            onchange={(e) => ws.settings.update({ editorInlayHints: e.currentTarget.checked })}
+          />
+          <span>Inlay hints (typové nápovědy)</span>
+        </label>
+
+        <label class="row">
+          <input
+            type="checkbox"
+            checked={s.editorDocHighlight}
+            onchange={(e) => ws.settings.update({ editorDocHighlight: e.currentTarget.checked })}
+          />
+          <span>Zvýraznit výskyty symbolu pod kurzorem</span>
+        </label>
+
+        <label class="row">
+          <input
+            type="checkbox"
             checked={s.formatOnSave}
             onchange={(e) => ws.settings.update({ formatOnSave: e.currentTarget.checked })}
           />

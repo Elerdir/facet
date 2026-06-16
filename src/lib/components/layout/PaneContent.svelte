@@ -98,6 +98,7 @@
         fontFamily={ws.settings.current.editorFontFamily}
         fontSize={ws.settings.current.editorFontSize}
         minimap={ws.settings.current.editorMinimap}
+        renderWhitespace={ws.settings.current.editorRenderWhitespace}
         formatRequest={isActivePane ? ws.textFormat.request : null}
         onFormatConsumed={() => ws.textFormat.consume()}
         {revealLine}
@@ -113,10 +114,10 @@
           ? (line, ch) =>
               buffer?.path ? ws.lspHover(buffer.path, line, ch) : Promise.resolve(null)
           : undefined}
-        inlayHints={lspActive
+        inlayHints={lspActive && ws.settings.current.editorInlayHints
           ? (s, e) => (buffer?.path ? ws.inlayHints(buffer.path, s, e) : Promise.resolve([]))
           : undefined}
-        documentHighlights={lspActive
+        documentHighlights={lspActive && ws.settings.current.editorDocHighlight
           ? (line, ch) =>
               buffer?.path ? ws.documentHighlights(buffer.path, line, ch) : Promise.resolve([])
           : undefined}
