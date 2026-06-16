@@ -18,6 +18,7 @@
   import RenameModal from "./lib/components/rename/RenameModal.svelte";
   import HunkStageModal from "./lib/components/vcs/HunkStageModal.svelte";
   import CloneModal from "./lib/components/vcs/CloneModal.svelte";
+  import FileOpModal from "./lib/components/explorer/FileOpModal.svelte";
   import ContextMenu, { type MenuItem } from "./lib/components/ContextMenu.svelte";
   import AiChatPanel from "./lib/components/ai/AiChatPanel.svelte";
   import InlineEditPanel from "./lib/components/ai/InlineEditPanel.svelte";
@@ -509,6 +510,10 @@
 
 {#if workspace.cloneUi.open}
   <CloneModal />
+{/if}
+
+{#if workspace.fileOpUi.op}
+  <FileOpModal />
 {/if}
 
 {#if workspace.inlineEdit.target}
