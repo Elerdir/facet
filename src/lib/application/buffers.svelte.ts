@@ -116,4 +116,14 @@ export class BufferStore {
     b.savedContent = content;
     return true;
   }
+
+  /** Reload from disk even if the buffer has unsaved changes (e.g. git discard). */
+  async hardReload(id: string): Promise<boolean> {
+    const b = this.get(id);
+    if (!b || !b.path) return false;
+    const content = await this.#fs.readTextFile(b.path);
+    b.content = content;
+    b.savedContent = content;
+    return true;
+  }
 }

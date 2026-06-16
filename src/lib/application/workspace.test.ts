@@ -307,6 +307,39 @@ describe("Workspace open flow", () => {
     expect(fs.files.get("/proj/x.ts")).toBe("foo");
   });
 
+  it("resolves a merge conflict in the active buffer", async () => {
+    const { fs, ws } = setup();
+    fs.files.set("/proj/a.ts", "x\n<<<<<<< HEAD\nmine\n=======\ntheirs\n>>>>>>> b\ny");
+    await ws.openPath("/proj/a.ts");
+    ws.resolveConflict(0, "current");
+    expect(ws.activeBuffer()!.content).toBe("x\nmine\ny");
+  });
+
+  it("discards a file's changes via git and reloads the buffer", async () => {
+    const { fs, ws, vcs } = setup();
+    vcs.repoStatus = { isRepo: true, branch: "main", files: [] };
+    await ws.vcs.refresh("/proj");
+    fs.files.set("/proj/a.ts", "saved");
+    await ws.openPath("/proj/a.ts");
+    ws.setContent(ws.layout.activeTabId!, "dirty edits");
+    fs.files.set("/proj/a.ts", "reverted"); // simulate the git checkout
+    await ws.discardFile("/proj/a.ts");
+    expect(vcs.discarded).toContain("a.ts");
+    expect(ws.activeBuffer()!.content).toBe("reverted");
+  });
+
+  it("saves, lists and pops stashes", async () => {
+    const { ws, vcs } = setup();
+    vcs.repoStatus = { isRepo: true, branch: "main", files: [] };
+    await ws.vcs.refresh("/proj");
+    await ws.vcs.stashSave("wip");
+    expect(vcs.stashOps).toContain("save:wip");
+    expect(ws.vcs.stashes).toHaveLength(1);
+    await ws.vcs.stashPop(0);
+    expect(vcs.stashOps).toContain("pop:0");
+    expect(ws.vcs.stashes).toHaveLength(0);
+  });
+
   it("computes git change markers against HEAD", async () => {
     const { ws, vcs } = setup();
     vcs.repoStatus = { isRepo: true, branch: "main", files: [] };

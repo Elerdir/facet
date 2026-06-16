@@ -325,6 +325,29 @@ export class FakeVcs implements VcsPort {
   async applyCached(_repo: string, patch: string): Promise<void> {
     this.appliedPatches.push(patch);
   }
+
+  discarded: string[] = [];
+  stashes: { index: number; message: string }[] = [];
+  stashOps: string[] = [];
+
+  async discard(_repo: string, file: string): Promise<void> {
+    this.discarded.push(file);
+  }
+  async stashSave(_repo: string, message: string | null): Promise<void> {
+    this.stashOps.push(`save:${message ?? ""}`);
+    this.stashes.unshift({ index: 0, message: message ?? "stash" });
+  }
+  async stashList(): Promise<{ index: number; message: string }[]> {
+    return this.stashes;
+  }
+  async stashPop(_repo: string, index: number): Promise<void> {
+    this.stashOps.push(`pop:${index}`);
+    this.stashes = this.stashes.filter((s) => s.index !== index);
+  }
+  async stashDrop(_repo: string, index: number): Promise<void> {
+    this.stashOps.push(`drop:${index}`);
+    this.stashes = this.stashes.filter((s) => s.index !== index);
+  }
 }
 
 /** Scriptable external-formatter port for unit tests. */

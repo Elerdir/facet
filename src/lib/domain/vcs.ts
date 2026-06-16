@@ -42,6 +42,11 @@ export interface BlameLine {
   author: string;
 }
 
+export interface StashEntry {
+  index: number;
+  message: string;
+}
+
 /** Split a flat status list into staged and unstaged groups (pure). */
 export function groupChanges(files: FileStatus[]): GroupedChanges {
   return {
