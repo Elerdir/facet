@@ -11,6 +11,9 @@ describe("parseSettings", () => {
         theme: "light",
         editorTheme: "dracula",
         lspEnabled: false,
+        lspServers: [
+          { extensions: ["zig"], command: "zls", args: [], languageId: "zig" },
+        ],
         aiApiKey: "sk-ant-test",
         aiModel: "claude-haiku-4-5",
         aiGhostCompletion: true,
@@ -33,6 +36,9 @@ describe("parseSettings", () => {
       theme: "light",
       editorTheme: "dracula",
       lspEnabled: false,
+      lspServers: [
+        { extensions: ["zig"], serverId: "zls", command: "zls", args: [], languageId: "zig" },
+      ],
       aiApiKey: "sk-ant-test",
       aiModel: "claude-haiku-4-5",
       aiGhostCompletion: true,

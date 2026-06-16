@@ -9,6 +9,7 @@
   } from "../../domain/newFileTemplates";
   import { EDITOR_FONTS } from "../../domain/editorFonts";
   import { EDITOR_THEMES } from "../../domain/editorThemes";
+  import { parseLspServers } from "../../lsp/servers";
 
   let { onClose }: { onClose: () => void } = $props();
 
@@ -17,6 +18,24 @@
 
   type Tab = "general" | "editor" | "templates" | "git" | "ai";
   let tab = $state<Tab>("general");
+
+  // --- Vlastní LSP servery --------------------------------------------------
+  let lspJson = $state(JSON.stringify(ws.settings.current.lspServers, null, 2));
+  let lspMsg = $state("");
+  let lspErr = $state(false);
+
+  function saveLspServers() {
+    try {
+      const parsed = parseLspServers(JSON.parse(lspJson));
+      ws.settings.update({ lspServers: parsed });
+      lspJson = JSON.stringify(parsed, null, 2);
+      lspErr = false;
+      lspMsg = `Uloženo (${parsed.length} serverů). Projeví se po znovuotevření souboru.`;
+    } catch (e) {
+      lspErr = true;
+      lspMsg = `Neplatný JSON: ${e instanceof Error ? e.message : String(e)}`;
+    }
+  }
 
   // --- Git identita ---------------------------------------------------------
   let gitName = $state("");
@@ -248,6 +267,25 @@
           />
           <span>Jazykové služby (LSP)</span>
         </label>
+
+        <div class="row col">
+          <span class="lbl">Vlastní LSP servery (JSON)</span>
+          <textarea
+            class="json"
+            rows="6"
+            spellcheck="false"
+            bind:value={lspJson}
+            placeholder={'[{ "extensions": ["zig"], "command": "zls", "args": [], "languageId": "zig" }]'}
+          ></textarea>
+          <div class="lsp-actions">
+            <button class="btn" onclick={saveLspServers}>Uložit servery</button>
+            {#if lspMsg}<span class="lsp-msg" class:err={lspErr}>{lspMsg}</span>{/if}
+          </div>
+          <span class="hint-text">
+            Přípony bez tečky, příkaz musí být v PATH. Vestavěné: TS/JS, Rust, Python,
+            Go, C/C++ (clangd), Lua, Bash, JSON, HTML, CSS/SCSS/LESS, YAML.
+          </span>
+        </div>
 
         <div class="section">Aktualizace</div>
         <div class="row">
@@ -801,5 +839,50 @@
   .tpl-form .btn {
     grid-column: 1 / -1;
     justify-self: end;
+  }
+
+  .row.col {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .row.col .lbl {
+    font-size: 12px;
+    color: var(--fg-dim);
+  }
+
+  textarea.json {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--fg);
+    padding: 8px;
+    font-family: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+    font-size: 12px;
+    resize: vertical;
+  }
+
+  .lsp-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .lsp-msg {
+    font-size: 11px;
+    color: var(--accent);
+  }
+
+  .lsp-msg.err {
+    color: #f85149;
+  }
+
+  .hint-text {
+    font-size: 11px;
+    color: var(--fg-dim);
+    line-height: 1.4;
   }
 </style>
