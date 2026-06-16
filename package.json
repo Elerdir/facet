@@ -39,7 +39,8 @@
     "codemirror": "^6.0.2",
     "markdown-it": "^14.2.0",
     "prettier": "^3.8.4",
-    "shiki": "^4.2.0"
+    "shiki": "^4.2.0",
+    "thememirror": "^2.0.1"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^5",

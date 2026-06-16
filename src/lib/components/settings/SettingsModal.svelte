@@ -8,6 +8,7 @@
     type NewFileTemplate,
   } from "../../domain/newFileTemplates";
   import { EDITOR_FONTS } from "../../domain/editorFonts";
+  import { EDITOR_THEMES } from "../../domain/editorThemes";
 
   let { onClose }: { onClose: () => void } = $props();
 
@@ -224,6 +225,18 @@
           >
             <option value="dark">Tmavý</option>
             <option value="light">Světlý</option>
+          </select>
+        </label>
+
+        <label class="row">
+          <span>Motiv editoru</span>
+          <select
+            value={s.editorTheme}
+            onchange={(e) => ws.settings.update({ editorTheme: e.currentTarget.value })}
+          >
+            {#each EDITOR_THEMES as t (t.id)}
+              <option value={t.id}>{t.label}</option>
+            {/each}
           </select>
         </label>
 
