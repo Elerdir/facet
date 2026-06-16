@@ -49,6 +49,7 @@ export function coreCommands(ws: Workspace, ui: UiActions): Command[] {
     { id: "view.problems", title: "Zobrazit problémy", run: ui.showProblems },
     { id: "view.outline", title: "Zobrazit osnovu (symboly)", run: ui.showOutline },
     { id: "edit.gotoLine", title: "Přejít na řádek…", hint: "Ctrl+G", run: ui.openGotoLine },
+    { id: "edit.reopenClosed", title: "Znovuotevřít zavřený panel", hint: "Ctrl+Shift+T", run: () => void ws.reopenClosedTab() },
     {
       id: "edit.gotoSymbol",
       title: "Přejít na symbol v souboru…",

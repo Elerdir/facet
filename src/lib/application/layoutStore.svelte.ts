@@ -44,6 +44,7 @@ export class LayoutStore {
   }
 
   closeTab(leafId: string, tabId: string): void {
+    if (this.isPinned(tabId)) this.pinned = this.pinned.filter((x) => x !== tabId);
     let root = L.updateLeaf(this.root, leafId, (l) => L.removeTab(l, tabId));
     const target = L.findLeaf(root, leafId);
     if (target && target.tabs.length === 0 && L.allLeaves(root).length > 1) {
@@ -95,6 +96,19 @@ export class LayoutStore {
     for (const leaf of L.allLeaves(this.root)) {
       if (leaf.tabs.includes(tabId)) this.closeTab(leaf.id, tabId);
     }
+  }
+
+  /** Pinned tab ids (rendered first; a visual "keep open" marker). */
+  pinned = $state<string[]>([]);
+
+  isPinned(tabId: string): boolean {
+    return this.pinned.includes(tabId);
+  }
+
+  togglePin(tabId: string): void {
+    this.pinned = this.isPinned(tabId)
+      ? this.pinned.filter((x) => x !== tabId)
+      : [...this.pinned, tabId];
   }
 
   /** Move a tab between panes (or reorder within one); drag & drop. */

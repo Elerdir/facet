@@ -23,6 +23,7 @@ export const BINDABLE_COMMANDS: BindableCommand[] = [
   { id: "ai.chat", label: "AI chat", default: "Ctrl+I" },
   { id: "app.settings", label: "Nastavení", default: "Ctrl+," },
   { id: "edit.closeTab", label: "Zavřít panel", default: "Ctrl+W" },
+  { id: "edit.reopenClosed", label: "Znovuotevřít zavřený panel", default: "Ctrl+Shift+T" },
   { id: "edit.gotoLine", label: "Přejít na řádek", default: "Ctrl+G" },
   { id: "edit.workspaceSymbol", label: "Symbol v projektu", default: "Ctrl+T" },
   { id: "edit.gotoSymbol", label: "Symbol v souboru", default: "Ctrl+Shift+." },

@@ -891,11 +891,25 @@ export class Workspace {
     if (this.layout.tabRefCount(tabId) === 0) {
       this.buffers.close(tabId);
       if (buf?.path) {
+        this.#closedFiles.push(buf.path);
+        if (this.#closedFiles.length > 30) this.#closedFiles.shift();
         const spec = this.#lspSpec(buf);
         if (spec) this.lsp.closeDoc(spec, buf.path);
       }
     }
     this.#schedulePersist();
+  }
+
+  #closedFiles: string[] = [];
+
+  /** Reopen the most recently closed file (Ctrl+Shift+T). */
+  async reopenClosedTab(): Promise<void> {
+    let path = this.#closedFiles.pop();
+    // Skip files already open again.
+    while (path && this.buffers.items.some((b) => b.path === path)) {
+      path = this.#closedFiles.pop();
+    }
+    if (path) await this.openPath(path);
   }
 
   // --- Explorer file management --------------------------------------------
