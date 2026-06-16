@@ -69,4 +69,18 @@ export class TauriFileSystem implements FileSystemPort {
   searchInFiles(root: string, query: string, maxResults: number): Promise<SearchMatch[]> {
     return invoke<SearchMatch[]>("search_in_files", { root, query, maxResults });
   }
+
+  replaceInFiles(
+    root: string,
+    query: string,
+    replacement: string,
+    exclude: string[],
+  ): Promise<{ path: string; count: number }[]> {
+    return invoke<{ path: string; count: number }[]>("replace_in_files", {
+      root,
+      query,
+      replacement,
+      exclude,
+    });
+  }
 }

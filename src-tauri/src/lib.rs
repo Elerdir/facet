@@ -44,6 +44,7 @@ pub fn run() {
             commands::list_files,
             commands::read_project_files,
             commands::search_in_files,
+            commands::replace_in_files,
             diff::diff_files,
             history::history_append,
             history::history_list,

@@ -5,10 +5,13 @@
 
   const ws = getWorkspace();
   let query = $state("");
+  let replacement = $state("");
   let results = $state<SearchMatch[]>([]);
   let loading = $state(false);
+  let status = $state("");
 
   async function run() {
+    status = "";
     if (query.trim() === "") {
       results = [];
       return;
@@ -16,6 +19,21 @@
     loading = true;
     try {
       results = await ws.searchProject(query);
+    } finally {
+      loading = false;
+    }
+  }
+
+  async function replaceAll() {
+    if (query.trim() === "" || results.length === 0) return;
+    loading = true;
+    status = "";
+    try {
+      const r = await ws.replaceInProject(query, replacement);
+      if (!r.cancelled) {
+        status = `Nahrazeno ${r.total}× v ${r.files} souborech.`;
+        await run();
+      }
     } finally {
       loading = false;
     }
@@ -44,6 +62,22 @@
       bind:value={query}
       onkeydown={(e) => e.key === "Enter" && run()}
     />
+    <div class="replace-row">
+      <input
+        placeholder="Nahradit za…"
+        bind:value={replacement}
+        onkeydown={(e) => e.key === "Enter" && replaceAll()}
+      />
+      <button
+        class="replace-btn"
+        title="Nahradit ve všech souborech"
+        disabled={results.length === 0 || loading}
+        onclick={replaceAll}
+      >
+        Nahradit vše
+      </button>
+    </div>
+    {#if status}<div class="status">{status}</div>{/if}
   </div>
 
   {#if !ws.explorer.rootPath}
@@ -93,6 +127,39 @@
     padding: 6px 8px;
     font-family: inherit;
     font-size: 12px;
+  }
+
+  .replace-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+  }
+
+  .replace-btn {
+    flex: 0 0 auto;
+    border: 1px solid var(--border);
+    background: var(--bg-elev-2);
+    color: var(--fg);
+    border-radius: 5px;
+    padding: 0 8px;
+    font-size: 11px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .replace-btn:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+
+  .replace-btn:not(:disabled):hover {
+    border-color: var(--accent);
+  }
+
+  .status {
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--accent);
   }
 
   .empty {

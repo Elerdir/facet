@@ -258,6 +258,33 @@ describe("Workspace open flow", () => {
     expect(ws.codeActionUi.items).toBeNull();
   });
 
+  it("replaces across the project, honoring unsaved buffers", async () => {
+    const { fs, ws } = setup();
+    await ws.explorer.openFolder("/proj");
+    fs.files.set("/proj/closed.ts", "foo and Foo");
+    fs.files.set("/proj/open.ts", "foo saved");
+    // Open one file and give it unsaved edits.
+    await ws.openPath("/proj/open.ts");
+    ws.setContent(ws.layout.activeTabId!, "foo dirty foo");
+
+    const r = await ws.replaceInProject("foo", "bar");
+    expect(r.cancelled).toBeUndefined();
+    expect(r.files).toBe(2);
+    expect(r.total).toBe(4); // closed: 2 (foo+Foo), open dirty: 2
+    expect(fs.files.get("/proj/closed.ts")).toBe("bar and bar");
+    expect(fs.files.get("/proj/open.ts")).toBe("bar dirty bar");
+  });
+
+  it("does not replace when the confirm dialog is declined", async () => {
+    const { fs, dialog, ws } = setup();
+    await ws.explorer.openFolder("/proj");
+    dialog.confirmResult = false;
+    fs.files.set("/proj/x.ts", "foo");
+    const r = await ws.replaceInProject("foo", "bar");
+    expect(r.cancelled).toBe(true);
+    expect(fs.files.get("/proj/x.ts")).toBe("foo");
+  });
+
   it("computes git change markers against HEAD", async () => {
     const { ws, vcs } = setup();
     vcs.repoStatus = { isRepo: true, branch: "main", files: [] };

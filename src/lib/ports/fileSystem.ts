@@ -33,4 +33,11 @@ export interface FileSystemPort {
   listFiles(root: string, limit: number): Promise<string[]>;
   /** Project-wide literal search (respects .gitignore, skips binaries). */
   searchInFiles(root: string, query: string, maxResults: number): Promise<SearchMatch[]>;
+  /** Project-wide literal replace; `exclude` paths are handled by the caller. */
+  replaceInFiles(
+    root: string,
+    query: string,
+    replacement: string,
+    exclude: string[],
+  ): Promise<{ path: string; count: number }[]>;
 }
