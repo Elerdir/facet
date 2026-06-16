@@ -125,6 +125,31 @@ describe("LspManager", () => {
     expect(result[0].children[0]).toMatchObject({ name: "bar", line: 3 });
   });
 
+  it("requests signature help and parses it", async () => {
+    const t = new FakeLspTransport();
+    const mgr = new LspManager(t);
+    const open = mgr.openDoc(spec, "/proj/a.ts", "typescript", "x", "/proj");
+    await initialized(t, open);
+
+    const p = mgr.signatureHelp(spec, "/proj/a.ts", 0, 4);
+    await tick();
+    const req = t.sentMessages().find((m) => m.method === "textDocument/signatureHelp");
+    expect(req).toBeDefined();
+    t.deliver("ts", {
+      jsonrpc: "2.0",
+      id: req!.id,
+      result: {
+        signatures: [{ label: "f(a: number)", parameters: [{ label: "a: number" }] }],
+        activeSignature: 0,
+        activeParameter: 0,
+      },
+    });
+
+    const help = await p;
+    expect(help?.signatures[0].label).toBe("f(a: number)");
+    expect(help?.signatures[0].parameters[0].label).toBe("a: number");
+  });
+
   it("requests code actions with diagnostics context and parses them", async () => {
     const t = new FakeLspTransport();
     const mgr = new LspManager(t);

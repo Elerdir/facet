@@ -205,6 +205,11 @@ export class Workspace {
     return spec ? this.lsp.hover(spec, path, line, character) : null;
   }
 
+  async signatureHelp(path: string, line: number, character: number) {
+    const spec = this.settings.current.lspEnabled ? serverForName(path) : null;
+    return spec ? this.lsp.signatureHelp(spec, path, line, character) : null;
+  }
+
   async lspGotoDefinition(path: string, line: number, character: number): Promise<void> {
     const spec = this.settings.current.lspEnabled ? serverForName(path) : null;
     if (!spec) return;
