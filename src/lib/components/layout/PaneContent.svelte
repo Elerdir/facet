@@ -7,7 +7,6 @@
   import StickyScroll from "../sticky/StickyScroll.svelte";
   import type { ChangeKind } from "../../domain/changeGutter";
   import { getWorkspace } from "../../application/context";
-  import { serverForName } from "../../lsp/servers";
   import type { PaneLeaf } from "../../domain/layout";
 
   let { leaf }: { leaf: PaneLeaf } = $props();
@@ -47,7 +46,7 @@
   const lspActive = $derived(
     !!buffer?.path &&
       ws.settings.current.lspEnabled &&
-      serverForName(buffer.name) !== null,
+      ws.serverFor(buffer.name) !== null,
   );
   const lspDiagnostics = $derived(
     lspActive && buffer?.path ? ws.lspDiagnostics(buffer.path) : undefined,

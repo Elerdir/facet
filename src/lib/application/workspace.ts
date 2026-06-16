@@ -47,7 +47,7 @@ import { basename, dirname, normalize, pathFromFileUri, relativeTo } from "../do
 import { applyTextEdits, type LspWorkspaceEdit } from "../lsp/edits";
 import { CodeActionsUiStore } from "./codeActionsUi.svelte";
 import { FileOpUiStore } from "./fileOpUi.svelte";
-import { serverForName, type ServerSpec } from "../lsp/servers";
+import { serverForName, userServerForName, type ServerSpec } from "../lsp/servers";
 import { flattenSymbols } from "../lsp/symbols";
 import { changeMarkers, type ChangeKind } from "../domain/changeGutter";
 import { replaceAllLiteral } from "../domain/replace";
@@ -176,9 +176,14 @@ export class Workspace {
 
   // --- language server (LSP) glue -----------------------------------------
 
+  /** The language server for a file: user config overrides the built-ins. */
+  serverFor(name: string): ServerSpec | null {
+    return userServerForName(name, this.settings.current.lspServers) ?? serverForName(name);
+  }
+
   #lspSpec(buf: Buffer): ServerSpec | null {
     if (!this.settings.current.lspEnabled || !buf.path) return null;
-    return serverForName(buf.name);
+    return this.serverFor(buf.name);
   }
 
   #lspOpen(buf: Buffer): void {
@@ -198,17 +203,17 @@ export class Workspace {
     line: number,
     character: number,
   ): Promise<LspCompletionItem[]> {
-    const spec = this.settings.current.lspEnabled ? serverForName(path) : null;
+    const spec = this.settings.current.lspEnabled ? this.serverFor(path) : null;
     return spec ? this.lsp.completion(spec, path, line, character) : [];
   }
 
   async lspHover(path: string, line: number, character: number): Promise<string | null> {
-    const spec = this.settings.current.lspEnabled ? serverForName(path) : null;
+    const spec = this.settings.current.lspEnabled ? this.serverFor(path) : null;
     return spec ? this.lsp.hover(spec, path, line, character) : null;
   }
 
   async signatureHelp(path: string, line: number, character: number) {
-    const spec = this.settings.current.lspEnabled ? serverForName(path) : null;
+    const spec = this.settings.current.lspEnabled ? this.serverFor(path) : null;
     return spec ? this.lsp.signatureHelp(spec, path, line, character) : null;
   }
 
@@ -221,7 +226,7 @@ export class Workspace {
   }
 
   async lspGotoDefinition(path: string, line: number, character: number): Promise<void> {
-    const spec = this.settings.current.lspEnabled ? serverForName(path) : null;
+    const spec = this.settings.current.lspEnabled ? this.serverFor(path) : null;
     if (!spec) return;
     const loc = await this.lsp.definition(spec, path, line, character);
     if (loc) await this.openAt(pathFromFileUri(loc.uri), loc.line + 1);
@@ -230,7 +235,7 @@ export class Workspace {
   /** Find all references; jumps directly for a single hit, else opens a picker. */
   /** Document symbols (outline) for a file, via its language server. */
   async documentSymbols(path: string) {
-    const spec = this.settings.current.lspEnabled ? serverForName(path) : null;
+    const spec = this.settings.current.lspEnabled ? this.serverFor(path) : null;
     return spec ? this.lsp.documentSymbols(spec, path) : [];
   }
 
@@ -299,7 +304,7 @@ export class Workspace {
   }
 
   async lspFindReferences(path: string, line: number, character: number): Promise<void> {
-    const spec = this.settings.current.lspEnabled ? serverForName(path) : null;
+    const spec = this.settings.current.lspEnabled ? this.serverFor(path) : null;
     if (!spec) return;
     const locations = await this.lsp.references(spec, path, line, character);
     if (locations.length === 0) return;
@@ -324,7 +329,7 @@ export class Workspace {
     character: number,
     newName: string,
   ): Promise<number> {
-    const spec = this.settings.current.lspEnabled ? serverForName(path) : null;
+    const spec = this.settings.current.lspEnabled ? this.serverFor(path) : null;
     if (!spec) return 0;
     const edit = await this.lsp.rename(spec, path, line, character, newName);
     if (!edit) return 0;
@@ -351,7 +356,7 @@ export class Workspace {
 
   /** Fetch code actions (quick fixes) for a position and open the picker. */
   async requestCodeActions(path: string, line: number, character: number): Promise<void> {
-    const spec = this.settings.current.lspEnabled ? serverForName(path) : null;
+    const spec = this.settings.current.lspEnabled ? this.serverFor(path) : null;
     if (!spec) return;
     const diagnostics = this.lspDiagnostics(path).filter(
       (d) => line >= d.line && line <= d.endLine,
@@ -376,7 +381,7 @@ export class Workspace {
     if (!item || !path) return;
     if (item.edit) await this.#applyWorkspaceEdit(item.edit);
     if (item.command) {
-      const spec = serverForName(path);
+      const spec = this.serverFor(path);
       if (spec) await this.lsp.executeCommand(spec, item.command.command, item.command.arguments);
     }
   }
