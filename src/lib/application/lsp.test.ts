@@ -320,6 +320,49 @@ describe("LspManager", () => {
     expect(syms[0]).toMatchObject({ name: "doThing", path: "/proj/b.ts", line: 2 });
   });
 
+  it("requests inlay hints for a range", async () => {
+    const t = new FakeLspTransport();
+    const mgr = new LspManager(t);
+    const open = mgr.openDoc(spec, "/proj/a.ts", "typescript", "x", "/proj");
+    await initialized(t, open);
+
+    const p = mgr.inlayHints(spec, "/proj/a.ts", 0, 10);
+    await tick();
+    const req = t.sentMessages().find((m) => m.method === "textDocument/inlayHint");
+    expect(req).toBeDefined();
+    t.deliver("ts", {
+      jsonrpc: "2.0",
+      id: req!.id,
+      result: [{ position: { line: 0, character: 3 }, label: ": number", paddingLeft: true }],
+    });
+    expect((await p)[0]).toMatchObject({ line: 0, character: 3, label: ": number" });
+  });
+
+  it("requests range formatting and parses the edits", async () => {
+    const t = new FakeLspTransport();
+    const mgr = new LspManager(t);
+    const open = mgr.openDoc(spec, "/proj/a.ts", "typescript", "x", "/proj");
+    await initialized(t, open);
+
+    const p = mgr.rangeFormatting(
+      spec,
+      "/proj/a.ts",
+      { startLine: 0, startCharacter: 0, endLine: 0, endCharacter: 5 },
+      2,
+    );
+    await tick();
+    const req = t.sentMessages().find((m) => m.method === "textDocument/rangeFormatting");
+    expect(req).toBeDefined();
+    t.deliver("ts", {
+      jsonrpc: "2.0",
+      id: req!.id,
+      result: [
+        { range: { start: { line: 0, character: 0 }, end: { line: 0, character: 5 } }, newText: "fixed" },
+      ],
+    });
+    expect((await p)[0]).toMatchObject({ startLine: 0, endCharacter: 5, newText: "fixed" });
+  });
+
   it("sends incremental didChange notifications", async () => {
     const t = new FakeLspTransport();
     const mgr = new LspManager(t);

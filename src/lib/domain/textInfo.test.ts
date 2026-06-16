@@ -5,7 +5,17 @@ import {
   detectIndent,
   tabsToSpaces,
   spacesToTabs,
+  offsetToPosition,
 } from "./textInfo";
+
+describe("offsetToPosition", () => {
+  it("maps offsets to line/character", () => {
+    const t = "ab\ncde\nf";
+    expect(offsetToPosition(t, 0)).toEqual({ line: 0, character: 0 });
+    expect(offsetToPosition(t, 4)).toEqual({ line: 1, character: 1 });
+    expect(offsetToPosition(t, 100)).toEqual({ line: 2, character: 1 });
+  });
+});
 
 describe("EOL", () => {
   it("detects LF and CRLF", () => {

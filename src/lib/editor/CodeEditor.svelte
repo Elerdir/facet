@@ -12,6 +12,9 @@
   import { breakpointExtensions } from "./breakpoints";
   import { signatureHelpExtension, setSignature } from "./signatureHelp";
   import { editorDecorations } from "./decorations";
+  import { inlayHintsField, setInlayHints } from "./inlayHints";
+  import { documentHighlightField, setHighlights } from "./documentHighlight";
+  import type { InlayHint, LspRangeSpan } from "../lsp/extras";
   import { loadEditorTheme } from "./themes";
   import { ghostCompletion } from "./ghostCompletion";
   import type { SignatureHelp } from "../lsp/signatureHelp";
@@ -41,6 +44,8 @@
     lspDiagnostics,
     lspComplete,
     snippets,
+    inlayHints,
+    documentHighlights,
     lspHover,
     onGotoDefinition,
     onFindReferences,
@@ -71,6 +76,8 @@
     lspDiagnostics?: LspDiagnostic[];
     lspComplete?: (line: number, character: number) => Promise<LspCompletionItem[]>;
     snippets?: SnippetConfig[];
+    inlayHints?: (startLine: number, endLine: number) => Promise<InlayHint[]>;
+    documentHighlights?: (line: number, character: number) => Promise<LspRangeSpan[]>;
     lspHover?: (line: number, character: number) => Promise<string | null>;
     onGotoDefinition?: (line: number, character: number) => void;
     onFindReferences?: (line: number, character: number) => void;
@@ -240,6 +247,34 @@
     }));
   }
   let loadGen = 0; // guards against stale async highlight loads
+  let inlayTimer: ReturnType<typeof setTimeout> | null = null;
+  let hlTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function requestInlay(v: EditorView) {
+    if (!inlayHints) return;
+    if (inlayTimer) clearTimeout(inlayTimer);
+    inlayTimer = setTimeout(() => {
+      const from = v.state.doc.lineAt(v.viewport.from).number - 1;
+      const to = v.state.doc.lineAt(v.viewport.to).number;
+      void inlayHints(from, to).then((hints) => {
+        if (view) view.dispatch({ effects: setInlayHints.of(hints) });
+      });
+    }, 300);
+  }
+
+  function requestHighlights(v: EditorView) {
+    if (!documentHighlights) return;
+    if (hlTimer) clearTimeout(hlTimer);
+    const head = v.state.selection.main.head;
+    const ln = v.state.doc.lineAt(head);
+    const line = ln.number - 1;
+    const ch = head - ln.from;
+    hlTimer = setTimeout(() => {
+      void documentHighlights(line, ch).then((spans) => {
+        if (view) view.dispatch({ effects: setHighlights.of(spans) });
+      });
+    }, 150);
+  }
 
   // 1-based first visible line at the top edge of the viewport (sticky scroll).
   function emitTopLine(v: EditorView) {
@@ -281,6 +316,8 @@
           ? [lintComp.of(lspLinter(() => lspDiagnostics ?? [])), lintGutter()]
           : []),
         completionExtension({ snippets: snippets ?? [], lspComplete }),
+        ...(inlayHints ? inlayHintsField() : []),
+        ...(documentHighlights ? documentHighlightField() : []),
         ...(lspHover ? [lspHoverTooltip(lspHover)] : []),
         ...(onGotoDefinition || onFindReferences || onRenameRequest || onCodeAction
           ? lspNavExtensions()
@@ -324,6 +361,8 @@
           if (onTopLine && (u.docChanged || u.viewportChanged || u.geometryChanged)) {
             emitTopLine(u.view);
           }
+          if (inlayHints && (u.docChanged || u.viewportChanged)) requestInlay(u.view);
+          if (documentHighlights && u.selectionSet) requestHighlights(u.view);
           if (signatureHelp && u.docChanged) {
             let typed = "";
             u.changes.iterChanges((_fa, _ta, _fb, _tb, ins) => {
@@ -604,6 +643,20 @@
   .editor-host :global(.cm-signature b) {
     color: var(--accent);
     font-weight: 600;
+  }
+
+  .editor-host :global(.cm-inlay) {
+    color: var(--fg-dim);
+    background: color-mix(in srgb, var(--fg) 8%, transparent);
+    border-radius: 4px;
+    padding: 0 3px;
+    font-size: 0.85em;
+    opacity: 0.85;
+  }
+
+  .editor-host :global(.cm-doc-highlight) {
+    background: color-mix(in srgb, var(--accent) 24%, transparent);
+    border-radius: 2px;
   }
 
   .editor-host :global(.cm-color-swatch) {

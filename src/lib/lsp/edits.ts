@@ -38,6 +38,12 @@ function toTextEdit(e: Record<string, unknown>): LspTextEdit {
   };
 }
 
+/** Parse a plain `TextEdit[]` (e.g. from range formatting) into our shape. */
+export function parseTextEdits(res: unknown): LspTextEdit[] {
+  if (!Array.isArray(res)) return [];
+  return (res as Record<string, unknown>[]).map(toTextEdit);
+}
+
 /** Parse an LSP `WorkspaceEdit` (changes map or documentChanges) into our shape. */
 export function parseWorkspaceEdit(res: unknown): LspWorkspaceEdit | null {
   if (!res || typeof res !== "object") return null;

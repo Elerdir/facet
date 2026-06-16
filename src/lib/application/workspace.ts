@@ -52,7 +52,7 @@ import { flattenSymbols, type WorkspaceSymbol } from "../lsp/symbols";
 import { changeMarkers, type ChangeKind } from "../domain/changeGutter";
 import { replaceAllLiteral } from "../domain/replace";
 import { snippetsForExtension, type SnippetConfig } from "../domain/snippets";
-import { convertEol, tabsToSpaces, spacesToTabs, type Eol } from "../domain/textInfo";
+import { convertEol, tabsToSpaces, spacesToTabs, offsetToPosition, type Eol } from "../domain/textInfo";
 import type { FileSystemPort } from "../ports/fileSystem";
 import type { SearchMatch } from "../domain/search";
 import type { LspTransport } from "../ports/lsp";
@@ -222,6 +222,36 @@ export class Workspace {
   async signatureHelp(path: string, line: number, character: number) {
     const spec = this.settings.current.lspEnabled ? this.serverFor(path) : null;
     return spec ? this.lsp.signatureHelp(spec, path, line, character) : null;
+  }
+
+  async inlayHints(path: string, startLine: number, endLine: number) {
+    const spec = this.settings.current.lspEnabled ? this.serverFor(path) : null;
+    return spec ? this.lsp.inlayHints(spec, path, startLine, endLine) : [];
+  }
+
+  async documentHighlights(path: string, line: number, character: number) {
+    const spec = this.settings.current.lspEnabled ? this.serverFor(path) : null;
+    return spec ? this.lsp.documentHighlights(spec, path, line, character) : [];
+  }
+
+  /** Format the active selection via LSP range formatting (or whole doc if none). */
+  async formatSelection(): Promise<void> {
+    const buf = this.activeBuffer();
+    const spec = buf?.path && this.settings.current.lspEnabled ? this.serverFor(buf.path) : null;
+    const { from, to } = this.editorStatus;
+    if (!buf || !spec || from >= to) {
+      await this.formatActive("format");
+      return;
+    }
+    const start = offsetToPosition(buf.content, from);
+    const end = offsetToPosition(buf.content, to);
+    const edits = await this.lsp.rangeFormatting(
+      spec,
+      buf.path!,
+      { startLine: start.line, startCharacter: start.character, endLine: end.line, endCharacter: end.character },
+      2,
+    );
+    if (edits.length > 0) this.setContent(buf.id, applyTextEdits(buf.content, edits));
   }
 
   /** Git change markers (added/modified/removed) for a file vs HEAD. */
