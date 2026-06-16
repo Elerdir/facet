@@ -11,14 +11,21 @@ export interface TreeNode {
   loading: boolean;
 }
 
+/** One workspace root folder (the explorer can hold several). */
+export interface RootFolder {
+  path: string;
+  name: string;
+  nodes: TreeNode[];
+  expanded: boolean;
+}
+
 /**
- * Reactive file-explorer state. Directories are loaded lazily one level at a
- * time through the FileSystemPort.
+ * Reactive multi-root file explorer. Holds one or more workspace folders, each
+ * lazily loaded one directory level at a time. `rootPath`/`rootName`/`nodes`
+ * expose the primary (first) root so single-root consumers keep working.
  */
 export class ExplorerStore {
-  rootPath = $state<string | null>(null);
-  rootName = $state<string>("");
-  nodes = $state<TreeNode[]>([]);
+  roots = $state<RootFolder[]>([]);
 
   #fs: FileSystemPort;
 
@@ -26,10 +33,45 @@ export class ExplorerStore {
     this.#fs = fs;
   }
 
+  /** Primary (first) workspace root, for single-root consumers. */
+  get rootPath(): string | null {
+    return this.roots[0]?.path ?? null;
+  }
+
+  get rootName(): string {
+    return this.roots[0]?.name ?? "";
+  }
+
+  /** Top-level nodes of the primary root (legacy single-root accessor). */
+  get nodes(): TreeNode[] {
+    return this.roots[0]?.nodes ?? [];
+  }
+
+  /** The workspace root that contains a path (longest match), or null. */
+  rootForPath(path: string): string | null {
+    let best: string | null = null;
+    for (const r of this.roots) {
+      const inside = path === r.path || path.startsWith(r.path + "/") || path.startsWith(r.path + "\\");
+      if (inside && (best === null || r.path.length > best.length)) best = r.path;
+    }
+    return best;
+  }
+
+  /** Replace the workspace with a single folder. */
   async openFolder(path: string): Promise<void> {
-    this.rootPath = path;
-    this.rootName = basename(path);
-    this.nodes = await this.#load(path);
+    this.roots = [{ path, name: basename(path), nodes: await this.#load(path), expanded: true }];
+  }
+
+  /** Add another folder to the workspace (no-op if already present). */
+  async addFolder(path: string): Promise<void> {
+    if (this.roots.some((r) => r.path === path)) return;
+    const root: RootFolder = { path, name: basename(path), nodes: await this.#load(path), expanded: true };
+    this.roots = [...this.roots, root];
+  }
+
+  /** Remove a folder from the workspace. */
+  removeFolder(path: string): void {
+    this.roots = this.roots.filter((r) => r.path !== path);
   }
 
   async toggle(node: TreeNode): Promise<void> {
@@ -45,24 +87,41 @@ export class ExplorerStore {
     }
   }
 
-  async refresh(): Promise<void> {
-    if (this.rootPath) this.nodes = await this.#load(this.rootPath);
+  toggleRoot(root: RootFolder): void {
+    root.expanded = !root.expanded;
   }
 
-  /** Reload one directory's children in place (preserving the rest of the
-   * tree's expansion), or the whole root when the path is the root/unloaded. */
+  async refresh(): Promise<void> {
+    for (const root of this.roots) root.nodes = await this.#load(root.path);
+  }
+
+  /** Reload one directory's children in place (or its root), preserving the rest. */
   async reloadPath(dirPath: string | null): Promise<void> {
-    if (!dirPath || dirPath === this.rootPath) {
+    if (!dirPath) {
       await this.refresh();
       return;
     }
-    const node = this.#find(this.nodes, dirPath);
+    const root = this.roots.find((r) => r.path === dirPath);
+    if (root) {
+      root.nodes = await this.#load(dirPath);
+      root.expanded = true;
+      return;
+    }
+    const node = this.#findInAll(dirPath);
     if (node && node.entry.isDir) {
       node.children = await this.#load(dirPath);
       node.expanded = true;
     } else {
       await this.refresh();
     }
+  }
+
+  #findInAll(path: string): TreeNode | null {
+    for (const root of this.roots) {
+      const hit = this.#find(root.nodes, path);
+      if (hit) return hit;
+    }
+    return null;
   }
 
   #find(nodes: TreeNode[], path: string): TreeNode | null {

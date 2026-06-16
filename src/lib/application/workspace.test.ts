@@ -378,6 +378,21 @@ describe("Workspace open flow", () => {
     expect(ws.buffers.get(id)!.content).toBe("fn main(){}");
   });
 
+  it("searches across multiple workspace folders", async () => {
+    const { fs, ws } = setup();
+    fs.files.set("/a/x.ts", "needle here");
+    fs.files.set("/b/y.ts", "needle too");
+    await ws.explorer.openFolder("/a");
+    await ws.explorer.addFolder("/b");
+    expect(ws.explorer.roots.map((r) => r.path)).toEqual(["/a", "/b"]);
+    expect(ws.explorer.rootPath).toBe("/a"); // primary stays the first
+    const res = await ws.searchProject("needle");
+    expect(res.map((m) => m.path).sort()).toEqual(["/a/x.ts", "/b/y.ts"]);
+    expect(ws.explorer.rootForPath("/b/y.ts")).toBe("/b");
+    ws.explorer.removeFolder("/a");
+    expect(ws.explorer.rootPath).toBe("/b");
+  });
+
   it("reopens the most recently closed file", async () => {
     const { fs, ws } = setup();
     fs.files.set("/proj/a.ts", "A");
@@ -661,6 +676,7 @@ describe("Workspace open flow", () => {
     const restored = await ws.restoreFromData({
       untitled: [{ name: "bez názvu 1", content: "poznámka" }],
       folder: "/proj",
+      folders: ["/proj"],
       files: ["/proj/a.ts", "/proj/b.md"],
       activePath: "/proj/a.ts",
     });
@@ -683,6 +699,7 @@ describe("Workspace open flow", () => {
     const restored = await ws.restoreFromData({
       untitled: [],
       folder: null,
+      folders: [],
       files: ["/proj/keep.ts", "/proj/deleted.ts"],
       activePath: null,
     });
