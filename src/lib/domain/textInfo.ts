@@ -2,6 +2,20 @@
 
 export type Eol = "lf" | "crlf";
 
+/** Convert a character offset into 0-based { line, character }. */
+export function offsetToPosition(text: string, offset: number): { line: number; character: number } {
+  const cap = Math.min(Math.max(offset, 0), text.length);
+  let line = 0;
+  let lineStart = 0;
+  for (let i = 0; i < cap; i++) {
+    if (text[i] === "\n") {
+      line++;
+      lineStart = i + 1;
+    }
+  }
+  return { line, character: cap - lineStart };
+}
+
 export function detectEol(text: string): Eol {
   return text.includes("\r\n") ? "crlf" : "lf";
 }

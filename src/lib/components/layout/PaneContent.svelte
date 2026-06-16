@@ -111,6 +111,13 @@
           ? (line, ch) =>
               buffer?.path ? ws.lspHover(buffer.path, line, ch) : Promise.resolve(null)
           : undefined}
+        inlayHints={lspActive
+          ? (s, e) => (buffer?.path ? ws.inlayHints(buffer.path, s, e) : Promise.resolve([]))
+          : undefined}
+        documentHighlights={lspActive
+          ? (line, ch) =>
+              buffer?.path ? ws.documentHighlights(buffer.path, line, ch) : Promise.resolve([])
+          : undefined}
         onGotoDefinition={lspActive
           ? (line, ch) => {
               if (buffer?.path) void ws.lspGotoDefinition(buffer.path, line, ch);

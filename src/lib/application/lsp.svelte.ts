@@ -2,7 +2,14 @@ import { encodeMessage, MessageBuffer, type JsonRpcMessage } from "../lsp/protoc
 import { fileUri } from "../domain/paths";
 import type { ServerSpec } from "../lsp/servers";
 import type { LspTransport } from "../ports/lsp";
-import { parseWorkspaceEdit, type LspLocation, type LspWorkspaceEdit } from "../lsp/edits";
+import {
+  parseWorkspaceEdit,
+  parseTextEdits,
+  type LspLocation,
+  type LspTextEdit,
+  type LspWorkspaceEdit,
+} from "../lsp/edits";
+import { parseInlayHints, parseHighlights, type InlayHint, type LspRangeSpan } from "../lsp/extras";
 import { parseCodeActions, type CodeActionItem } from "../lsp/codeActions";
 import { parseSignatureHelp, type SignatureHelp } from "../lsp/signatureHelp";
 import {
@@ -280,6 +287,61 @@ export class LspManager {
       }
     }
     return out;
+  }
+
+  async inlayHints(
+    spec: ServerSpec,
+    path: string,
+    startLine: number,
+    endLine: number,
+  ): Promise<InlayHint[]> {
+    const conn = this.#conns.get(spec.serverId);
+    if (!conn) return [];
+    await conn.ready;
+    const res = await this.#request(conn, "textDocument/inlayHint", {
+      textDocument: { uri: fileUri(path) },
+      range: {
+        start: { line: startLine, character: 0 },
+        end: { line: endLine, character: 0 },
+      },
+    });
+    return parseInlayHints(res);
+  }
+
+  async documentHighlights(
+    spec: ServerSpec,
+    path: string,
+    line: number,
+    character: number,
+  ): Promise<LspRangeSpan[]> {
+    const conn = this.#conns.get(spec.serverId);
+    if (!conn) return [];
+    await conn.ready;
+    const res = await this.#request(conn, "textDocument/documentHighlight", {
+      textDocument: { uri: fileUri(path) },
+      position: { line, character },
+    });
+    return parseHighlights(res);
+  }
+
+  async rangeFormatting(
+    spec: ServerSpec,
+    path: string,
+    range: LspRangeSpan,
+    tabSize: number,
+  ): Promise<LspTextEdit[]> {
+    const conn = this.#conns.get(spec.serverId);
+    if (!conn) return [];
+    await conn.ready;
+    const res = await this.#request(conn, "textDocument/rangeFormatting", {
+      textDocument: { uri: fileUri(path) },
+      range: {
+        start: { line: range.startLine, character: range.startCharacter },
+        end: { line: range.endLine, character: range.endCharacter },
+      },
+      options: { tabSize, insertSpaces: true },
+    });
+    return parseTextEdits(res);
   }
 
   diagnosticsFor(path: string): LspDiagnostic[] {
