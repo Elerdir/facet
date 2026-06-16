@@ -311,6 +311,15 @@
           <span>Připnuté hlavičky (sticky scroll)</span>
         </label>
 
+        <label class="row">
+          <input
+            type="checkbox"
+            checked={s.formatOnSave}
+            onchange={(e) => ws.settings.update({ formatOnSave: e.currentTarget.checked })}
+          />
+          <span>Formátovat při uložení</span>
+        </label>
+
         <div class="note">
           Tučně / kurzíva / podtržení pro výběr najdeš v paletě příkazů
           (Ctrl+Shift+P → „Formát: …").

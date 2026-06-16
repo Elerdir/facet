@@ -721,6 +721,17 @@ export class Workspace {
 
   /** Save a buffer and, on success, record a history revision. */
   async saveBuffer(id: string): Promise<boolean> {
+    if (this.settings.current.formatOnSave) {
+      const buf = this.buffers.get(id);
+      if (buf && !buf.binary && buf.path) {
+        try {
+          const formatted = await this.formatter.format(buf, "format");
+          if (formatted !== null) this.buffers.setContent(id, formatted);
+        } catch {
+          // Save the file even if formatting fails.
+        }
+      }
+    }
     const ok = await this.buffers.save(id);
     if (ok) {
       const buf = this.buffers.get(id);
