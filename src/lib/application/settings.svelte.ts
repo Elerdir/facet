@@ -2,6 +2,7 @@ import { appConfigDir, join } from "@tauri-apps/api/path";
 import {
   DEFAULT_SETTINGS,
   parseSettings,
+  parseProjectSettings,
   stripSecrets,
   SECRET_SETTINGS_KEYS,
   type Settings,
@@ -16,7 +17,9 @@ import type { SecretsPort } from "../ports/secrets";
  * secrets found in the file are migrated into the store on load.
  */
 export class SettingsStore {
-  current = $state<Settings>({ ...DEFAULT_SETTINGS });
+  #global = $state<Settings>({ ...DEFAULT_SETTINGS });
+  /** Override loaded from the project's `.facet.json` (non-secret keys only). */
+  #project = $state<Partial<Settings>>({});
 
   #fs: FileSystemPort;
   #secrets: SecretsPort | null;
@@ -24,6 +27,20 @@ export class SettingsStore {
   constructor(fs: FileSystemPort, secrets: SecretsPort | null = null) {
     this.#fs = fs;
     this.#secrets = secrets;
+  }
+
+  /** Effective settings: global overlaid with the project override. */
+  get current(): Settings {
+    return { ...this.#global, ...this.#project };
+  }
+
+  /** Replace global settings (used by tests; production uses `update`). */
+  set current(value: Settings) {
+    this.#global = value;
+  }
+
+  get hasProjectOverride(): boolean {
+    return Object.keys(this.#project).length > 0;
   }
 
   async load(): Promise<void> {
@@ -52,20 +69,37 @@ export class SettingsStore {
       }
     }
 
-    this.current = parsed;
+    this.#global = parsed;
     this.applyTheme();
     if (fileHadSecrets) await this.#persist();
   }
 
+  /** Load (or clear) a project's `.facet.json` override from a root folder. */
+  async loadProject(root: string | null): Promise<void> {
+    if (!root) {
+      this.#project = {};
+      this.applyTheme();
+      return;
+    }
+    try {
+      const sep = root.includes("\\") ? "\\" : "/";
+      const path = root.replace(/[\\/]+$/, "") + sep + ".facet.json";
+      this.#project = parseProjectSettings(await this.#fs.readTextFile(path));
+    } catch {
+      this.#project = {};
+    }
+    this.applyTheme();
+  }
+
   async update(patch: Partial<Settings>): Promise<void> {
-    this.current = { ...this.current, ...patch };
+    this.#global = { ...this.#global, ...patch };
     this.applyTheme();
 
     if (this.#secrets) {
       for (const key of SECRET_SETTINGS_KEYS) {
         if (key in patch) {
           try {
-            await this.#secrets.set(key, this.current[key]);
+            await this.#secrets.set(key, this.#global[key]);
           } catch {
             // Best effort — the in-memory value still applies this session.
           }
@@ -95,7 +129,7 @@ export class SettingsStore {
     try {
       await this.#fs.writeTextFile(
         await this.#path(),
-        JSON.stringify(stripSecrets(this.current), null, 2),
+        JSON.stringify(stripSecrets(this.#global), null, 2),
       );
     } catch {
       // Best effort: in-memory settings still apply this session.

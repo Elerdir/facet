@@ -41,6 +41,7 @@ import { BreakpointStore } from "./breakpoints.svelte";
 import { adapterForFile, launchConfig } from "../dap/adapters";
 import type { DapTransport } from "../ports/dap";
 import { serializeSession, parseSession, type SessionData } from "../config/session";
+import { PROJECT_OVERRIDABLE_KEYS } from "../config/settings";
 import { appConfigDir, join } from "@tauri-apps/api/path";
 import { isDirty, type Buffer } from "../domain/buffer";
 import { basename, dirname, extension, normalize, pathFromFileUri, relativeTo } from "../domain/paths";
@@ -829,9 +830,25 @@ export class Workspace {
     const path = await this.#dialog.openFolder();
     if (!path) return;
     await this.explorer.openFolder(path);
+    await this.settings.loadProject(path);
     await this.vcs.refresh(path);
     void this.#watcher?.watch(path).catch(() => {});
     this.#schedulePersist();
+  }
+
+  /** Write the current effective settings (overridable subset) to `.facet.json`. */
+  async saveProjectSettings(): Promise<boolean> {
+    const root = this.explorer.rootPath;
+    if (!root) return false;
+    const eff = this.settings.current as unknown as Record<string, unknown>;
+    const subset: Record<string, unknown> = {};
+    for (const key of PROJECT_OVERRIDABLE_KEYS) subset[key] = eff[key];
+    const sep = root.includes("\\") ? "\\" : "/";
+    const path = root.replace(/[\\/]+$/, "") + sep + ".facet.json";
+    await this.#fs.writeTextFile(path, JSON.stringify(subset, null, 2));
+    await this.settings.loadProject(root);
+    void this.explorer.reloadPath(root);
+    return true;
   }
 
   /** Add another folder to the multi-root workspace (via dialog). */
@@ -839,6 +856,7 @@ export class Workspace {
     const path = await this.#dialog.openFolder();
     if (!path) return;
     await this.explorer.addFolder(path);
+    await this.settings.loadProject(this.explorer.rootPath);
     this.#schedulePersist();
   }
 
@@ -848,6 +866,7 @@ export class Workspace {
     this.explorer.removeFolder(path);
     if (wasPrimary) {
       const next = this.explorer.rootPath;
+      void this.settings.loadProject(next);
       void this.vcs.refresh(next);
       if (next) void this.#watcher?.watch(next).catch(() => {});
     }
@@ -1156,6 +1175,7 @@ export class Workspace {
         // folder gone — continue with the rest
       }
     }
+    await this.settings.loadProject(this.explorer.rootPath);
     for (const path of data.files) {
       try {
         await this.openPath(path);

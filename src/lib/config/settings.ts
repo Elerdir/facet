@@ -68,6 +68,44 @@ export const DEFAULT_SETTINGS: Settings = {
   gitlabHost: "gitlab.com",
 };
 
+/** Settings a project's `.facet.json` may override (never secrets). */
+export const PROJECT_OVERRIDABLE_KEYS = [
+  "theme",
+  "editorTheme",
+  "editorFontFamily",
+  "editorFontSize",
+  "editorMinimap",
+  "editorBreadcrumbs",
+  "editorStickyScroll",
+  "formatOnSave",
+  "lspEnabled",
+  "lspServers",
+  "snippets",
+  "autosaveEnabled",
+  "autosaveSeconds",
+] as const;
+
+/**
+ * Parse a project's `.facet.json` into a partial override: only keys actually
+ * present and in the overridable (non-secret) set, validated via parseSettings.
+ */
+export function parseProjectSettings(raw: string): Partial<Settings> {
+  let data: unknown;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return {};
+  }
+  if (typeof data !== "object" || data === null) return {};
+  const present = data as Record<string, unknown>;
+  const full = parseSettings(raw);
+  const out: Partial<Settings> = {};
+  for (const key of PROJECT_OVERRIDABLE_KEYS) {
+    if (key in present) (out as Record<string, unknown>)[key] = full[key];
+  }
+  return out;
+}
+
 function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value)
     ? Math.min(max, Math.max(min, value))
