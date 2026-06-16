@@ -10,6 +10,7 @@
   import { lspCompletion, lspHoverTooltip, lspLinter } from "./lspExtensions";
   import { breakpointExtensions } from "./breakpoints";
   import { signatureHelpExtension, setSignature } from "./signatureHelp";
+  import { editorDecorations } from "./decorations";
   import { ghostCompletion } from "./ghostCompletion";
   import type { SignatureHelp } from "../lsp/signatureHelp";
   import { LARGE_TEXT_BYTES } from "../domain/fileInfo";
@@ -265,6 +266,7 @@
         keymap.of([indentWithTab]),
         themeComp.of(theme === "dark" ? oneDark : []),
         highlight.of([]),
+        editorDecorations,
         blameComp.of(blameExtension()),
         changeComp.of(changeExtension()),
         bpComp.of(bpExtension()),
@@ -592,5 +594,39 @@
   .editor-host :global(.cm-signature b) {
     color: var(--accent);
     font-weight: 600;
+  }
+
+  .editor-host :global(.cm-color-swatch) {
+    display: inline-block;
+    width: 0.8em;
+    height: 0.8em;
+    margin-right: 0.35em;
+    vertical-align: baseline;
+    border: 1px solid color-mix(in srgb, var(--fg) 35%, transparent);
+    border-radius: 3px;
+  }
+
+  .editor-host :global(.cm-todo) {
+    border-radius: 3px;
+    padding: 0 3px;
+    font-weight: 700;
+  }
+
+  .editor-host :global(.cm-todo-todo),
+  .editor-host :global(.cm-todo-note) {
+    background: color-mix(in srgb, #4aa3ff 30%, transparent);
+    color: #cde6ff;
+  }
+
+  .editor-host :global(.cm-todo-fixme),
+  .editor-host :global(.cm-todo-bug),
+  .editor-host :global(.cm-todo-xxx) {
+    background: color-mix(in srgb, #f85149 32%, transparent);
+    color: #ffd9d6;
+  }
+
+  .editor-host :global(.cm-todo-hack) {
+    background: color-mix(in srgb, #d29922 34%, transparent);
+    color: #ffe9bd;
   }
 </style>
