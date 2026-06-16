@@ -5,11 +5,14 @@ export interface DocSymbol {
   kind: number;
   /** 0-based line of the symbol. */
   line: number;
+  /** 0-based last line of the symbol's full extent (>= line). */
+  endLine: number;
   children: DocSymbol[];
 }
 
 interface Range {
   start: { line: number; character: number };
+  end?: { line: number; character: number };
 }
 
 function lineOf(o: Record<string, unknown>): number {
@@ -21,18 +24,40 @@ function lineOf(o: Record<string, unknown>): number {
   return range ? range.start.line : 0;
 }
 
+/** Last line of the symbol's full body, for cursor-containment (breadcrumbs). */
+function endLineOf(o: Record<string, unknown>, start: number): number {
+  const loc = o.location as { range?: Range } | undefined;
+  const range = (o.range as Range | undefined) ?? loc?.range;
+  return range?.end ? range.end.line : start;
+}
+
 function mapSymbol(item: unknown): DocSymbol | null {
   if (!item || typeof item !== "object") return null;
   const o = item as Record<string, unknown>;
   const children = Array.isArray(o.children)
     ? (o.children.map(mapSymbol).filter((s): s is DocSymbol => s !== null))
     : [];
+  const line = lineOf(o);
   return {
     name: typeof o.name === "string" ? o.name : "",
     kind: typeof o.kind === "number" ? o.kind : 0,
-    line: lineOf(o),
+    line,
+    endLine: Math.max(line, endLineOf(o, line)),
     children,
   };
+}
+
+/**
+ * The chain of symbols (outermost → innermost) whose extent contains a 0-based
+ * line. Used by the breadcrumb bar to show "Class › method" for the cursor.
+ */
+export function symbolTrail(symbols: DocSymbol[], line: number): DocSymbol[] {
+  for (const sym of symbols) {
+    if (line >= sym.line && line <= sym.endLine) {
+      return [sym, ...symbolTrail(sym.children, line)];
+    }
+  }
+  return [];
 }
 
 /** Parse a `textDocument/documentSymbol` result (hierarchical or flat). */

@@ -3,6 +3,7 @@
   import CodeEditor from "../../editor/CodeEditor.svelte";
   import MarkdownPreview from "../preview/MarkdownPreview.svelte";
   import HexView from "../hex/HexView.svelte";
+  import Breadcrumbs from "../breadcrumbs/Breadcrumbs.svelte";
   import { getWorkspace } from "../../application/context";
   import { serverForName } from "../../lsp/servers";
   import type { PaneLeaf } from "../../domain/layout";
@@ -57,7 +58,12 @@
     {:else if leaf.view === "preview"}
       <MarkdownPreview {buffer} />
     {:else}
-      <CodeEditor
+      <div class="editor-stack">
+        {#if ws.settings.current.editorBreadcrumbs && buffer}
+          <Breadcrumbs {buffer} active={isActivePane} />
+        {/if}
+        <div class="editor-fill">
+          <CodeEditor
         {buffer}
         theme={ws.settings.current.theme}
         fontFamily={ws.settings.current.editorFontFamily}
@@ -127,8 +133,10 @@
             );
           }
         }}
-        onRevealConsumed={() => ws.layout.consumeReveal()}
-      />
+            onRevealConsumed={() => ws.layout.consumeReveal()}
+          />
+        </div>
+      </div>
     {/if}
   </div>
 </div>
@@ -152,6 +160,19 @@
     flex: 1;
     min-height: 0;
     overflow: hidden;
+  }
+
+  .editor-stack {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .editor-fill {
+    position: relative;
+    flex: 1;
+    min-height: 0;
   }
 
   .empty {

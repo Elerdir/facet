@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseDocumentSymbols, symbolKindName } from "./symbols";
+import { parseDocumentSymbols, symbolKindName, symbolTrail } from "./symbols";
 
 describe("parseDocumentSymbols", () => {
   it("parses hierarchical DocumentSymbol with children", () => {
@@ -21,7 +21,7 @@ describe("parseDocumentSymbols", () => {
     ];
     const syms = parseDocumentSymbols(res);
     expect(syms).toHaveLength(1);
-    expect(syms[0]).toMatchObject({ name: "MyClass", kind: 5, line: 2 });
+    expect(syms[0]).toMatchObject({ name: "MyClass", kind: 5, line: 2, endLine: 9 });
     expect(syms[0].children[0]).toMatchObject({ name: "method", kind: 6, line: 4 });
   });
 
@@ -37,6 +37,33 @@ describe("parseDocumentSymbols", () => {
   it("returns [] for null / non-array", () => {
     expect(parseDocumentSymbols(null)).toEqual([]);
     expect(parseDocumentSymbols({})).toEqual([]);
+  });
+});
+
+describe("symbolTrail", () => {
+  const tree = parseDocumentSymbols([
+    {
+      name: "MyClass",
+      kind: 5,
+      range: { start: { line: 2, character: 0 }, end: { line: 9, character: 0 } },
+      children: [
+        {
+          name: "method",
+          kind: 6,
+          range: { start: { line: 4, character: 2 }, end: { line: 6, character: 2 } },
+          children: [],
+        },
+      ],
+    },
+  ]);
+
+  it("returns the outer→inner chain containing a line", () => {
+    expect(symbolTrail(tree, 5).map((s) => s.name)).toEqual(["MyClass", "method"]);
+    expect(symbolTrail(tree, 8).map((s) => s.name)).toEqual(["MyClass"]);
+  });
+
+  it("returns [] when no symbol contains the line", () => {
+    expect(symbolTrail(tree, 0)).toEqual([]);
   });
 });
 
