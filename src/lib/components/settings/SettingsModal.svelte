@@ -301,6 +301,16 @@
           <span>Drobečková navigace (breadcrumbs)</span>
         </label>
 
+        <label class="row">
+          <input
+            type="checkbox"
+            checked={s.editorStickyScroll}
+            onchange={(e) =>
+              ws.settings.update({ editorStickyScroll: e.currentTarget.checked })}
+          />
+          <span>Připnuté hlavičky (sticky scroll)</span>
+        </label>
+
         <div class="note">
           Tučně / kurzíva / podtržení pro výběr najdeš v paletě příkazů
           (Ctrl+Shift+P → „Formát: …").
