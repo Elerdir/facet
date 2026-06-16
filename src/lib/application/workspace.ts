@@ -46,6 +46,7 @@ import { isDirty, type Buffer } from "../domain/buffer";
 import { dirname, normalize, pathFromFileUri, relativeTo } from "../domain/paths";
 import { applyTextEdits } from "../lsp/edits";
 import { serverForName, type ServerSpec } from "../lsp/servers";
+import { flattenSymbols } from "../lsp/symbols";
 import type { FileSystemPort } from "../ports/fileSystem";
 import type { SearchMatch } from "../domain/search";
 import type { LspTransport } from "../ports/lsp";
@@ -211,6 +212,23 @@ export class Workspace {
   async documentSymbols(path: string) {
     const spec = this.settings.current.lspEnabled ? serverForName(path) : null;
     return spec ? this.lsp.documentSymbols(spec, path) : [];
+  }
+
+  /** Open a "go to symbol in file" picker for the active buffer. */
+  async goToSymbol(): Promise<void> {
+    const buf = this.activeBuffer();
+    if (!buf?.path) return;
+    const path = buf.path;
+    const flat = flattenSymbols(await this.documentSymbols(path));
+    if (flat.length === 0) return;
+    this.referencesUi.open(
+      flat.map((s) => ({
+        path,
+        line: s.line + 1,
+        label: `${"  ".repeat(s.depth)}${s.name}`,
+      })),
+      "Přejít na symbol…",
+    );
   }
 
   /** All current LSP diagnostics grouped by file path (for the Problems panel). */

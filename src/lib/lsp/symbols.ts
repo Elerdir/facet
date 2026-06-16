@@ -47,6 +47,25 @@ function mapSymbol(item: unknown): DocSymbol | null {
   };
 }
 
+export interface FlatSymbol {
+  name: string;
+  kind: number;
+  /** 0-based line of the symbol. */
+  line: number;
+  /** Nesting depth (0 = top level), for indenting the picker. */
+  depth: number;
+}
+
+/** Depth-first flatten of the symbol tree for a "go to symbol" picker. */
+export function flattenSymbols(symbols: DocSymbol[], depth = 0): FlatSymbol[] {
+  const out: FlatSymbol[] = [];
+  for (const s of symbols) {
+    out.push({ name: s.name, kind: s.kind, line: s.line, depth });
+    out.push(...flattenSymbols(s.children, depth + 1));
+  }
+  return out;
+}
+
 /**
  * The chain of symbols (outermost → innermost) whose extent contains a 0-based
  * line. Used by the breadcrumb bar to show "Class › method" for the cursor.

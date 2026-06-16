@@ -44,6 +44,12 @@ export function coreCommands(ws: Workspace, ui: UiActions): Command[] {
     { id: "view.scm", title: "Zobrazit změny (Git)", run: ui.showScm },
     { id: "view.problems", title: "Zobrazit problémy", run: ui.showProblems },
     { id: "view.outline", title: "Zobrazit osnovu (symboly)", run: ui.showOutline },
+    {
+      id: "edit.gotoSymbol",
+      title: "Přejít na symbol v souboru…",
+      hint: "Ctrl+Shift+.",
+      run: () => void ws.goToSymbol(),
+    },
     { id: "view.debug", title: "Zobrazit ladění", run: ui.showDebug },
     {
       id: "debug.start",
