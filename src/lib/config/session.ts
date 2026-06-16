@@ -9,7 +9,10 @@ export interface SessionBuffer {
 export interface SessionData {
   /** Never-saved ("untitled") buffers — survive until closed. */
   untitled: SessionBuffer[];
+  /** Primary folder (legacy single-root field). */
   folder: string | null;
+  /** All workspace folders (multi-root); falls back to [folder]. */
+  folders: string[];
   files: string[];
   activePath: string | null;
 }
@@ -17,6 +20,7 @@ export interface SessionData {
 export const EMPTY_SESSION: SessionData = {
   untitled: [],
   folder: null,
+  folders: [],
   files: [],
   activePath: null,
 };
@@ -42,9 +46,17 @@ export function parseSession(raw: string): SessionData {
           .map((b) => ({ name: b.name as string, content: b.content as string }))
       : [];
 
+    const folder = typeof r.folder === "string" && r.folder !== "" ? r.folder : null;
+    const folders = Array.isArray(r.folders)
+      ? r.folders.filter((f): f is string => typeof f === "string" && f !== "")
+      : folder
+        ? [folder]
+        : [];
+
     return {
       untitled,
-      folder: typeof r.folder === "string" && r.folder !== "" ? r.folder : null,
+      folder,
+      folders,
       files: Array.isArray(r.files)
         ? r.files.filter((f): f is string => typeof f === "string" && f !== "")
         : [],

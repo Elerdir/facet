@@ -482,8 +482,14 @@ export class Workspace {
 
   /** All file paths under the open folder (for fuzzy quick-open). */
   async listProjectFiles(limit = 5000): Promise<string[]> {
-    const root = this.explorer.rootPath;
-    return root ? this.#fs.listFiles(root, limit) : [];
+    const roots = this.explorer.roots;
+    if (roots.length === 0) return [];
+    const out: string[] = [];
+    for (const r of roots) {
+      out.push(...(await this.#fs.listFiles(r.path, limit)));
+      if (out.length >= limit) break;
+    }
+    return out.slice(0, limit);
   }
 
   newFile(): void {
@@ -828,6 +834,26 @@ export class Workspace {
     this.#schedulePersist();
   }
 
+  /** Add another folder to the multi-root workspace (via dialog). */
+  async addFolderToWorkspace(): Promise<void> {
+    const path = await this.#dialog.openFolder();
+    if (!path) return;
+    await this.explorer.addFolder(path);
+    this.#schedulePersist();
+  }
+
+  /** Remove a workspace folder (git/watch follow the primary root). */
+  removeWorkspaceFolder(path: string): void {
+    const wasPrimary = this.explorer.rootPath === path;
+    this.explorer.removeFolder(path);
+    if (wasPrimary) {
+      const next = this.explorer.rootPath;
+      void this.vcs.refresh(next);
+      if (next) void this.#watcher?.watch(next).catch(() => {});
+    }
+    this.#schedulePersist();
+  }
+
   async saveActive(): Promise<void> {
     const id = this.layout.activeTabId;
     if (id) await this.saveBuffer(id);
@@ -1004,11 +1030,16 @@ export class Workspace {
     }
   }
 
-  /** Project-wide search in the open folder. */
+  /** Project-wide search across all workspace folders. */
   async searchProject(query: string, maxResults = 500): Promise<SearchMatch[]> {
-    const root = this.explorer.rootPath;
-    if (!root || query.trim() === "") return [];
-    return this.#fs.searchInFiles(root, query, maxResults);
+    const roots = this.explorer.roots;
+    if (roots.length === 0 || query.trim() === "") return [];
+    const out: SearchMatch[] = [];
+    for (const r of roots) {
+      if (out.length >= maxResults) break;
+      out.push(...(await this.#fs.searchInFiles(r.path, query, maxResults - out.length)));
+    }
+    return out;
   }
 
   /**
@@ -1020,8 +1051,8 @@ export class Workspace {
     query: string,
     replacement: string,
   ): Promise<{ files: number; total: number; cancelled?: boolean }> {
-    const root = this.explorer.rootPath;
-    if (!root || query === "") return { files: 0, total: 0 };
+    const roots = this.explorer.roots;
+    if (roots.length === 0 || query === "") return { files: 0, total: 0 };
     const ok = await this.#dialog.confirm(
       `Nahradit „${query}" → „${replacement}" ve všech souborech projektu?`,
     );
@@ -1046,12 +1077,15 @@ export class Workspace {
       }
     }
 
-    // 2. Everything else on disk.
-    const changed = await this.#fs.replaceInFiles(root, query, replacement, exclude);
-    const changedPaths = new Set(changed.map((c) => c.path));
-    for (const c of changed) {
-      files++;
-      total += c.count;
+    // 2. Everything else on disk, across every workspace root.
+    const changedPaths = new Set<string>();
+    for (const r of roots) {
+      const changed = await this.#fs.replaceInFiles(r.path, query, replacement, exclude);
+      for (const c of changed) {
+        changedPaths.add(c.path);
+        files++;
+        total += c.count;
+      }
     }
 
     // 3. Refresh any open (clean) buffers whose file changed underneath them.
@@ -1085,6 +1119,7 @@ export class Workspace {
           .filter((b) => b.path === null)
           .map((b) => ({ name: b.name, content: b.content })),
         folder: this.explorer.rootPath,
+        folders: this.explorer.roots.map((r) => r.path),
         files: this.buffers.items.flatMap((b) => (b.path ? [b.path] : [])),
         activePath: active?.path ?? null,
       };
@@ -1107,11 +1142,16 @@ export class Workspace {
   /** Apply parsed session data; missing files are skipped silently. */
   async restoreFromData(data: SessionData): Promise<number> {
     let restored = 0;
-    if (data.folder) {
+    const folders = data.folders.length > 0 ? data.folders : data.folder ? [data.folder] : [];
+    for (const [i, folder] of folders.entries()) {
       try {
-        await this.explorer.openFolder(data.folder);
-        await this.vcs.refresh(data.folder);
-        void this.#watcher?.watch(data.folder).catch(() => {});
+        if (i === 0) {
+          await this.explorer.openFolder(folder);
+          await this.vcs.refresh(folder);
+          void this.#watcher?.watch(folder).catch(() => {});
+        } else {
+          await this.explorer.addFolder(folder);
+        }
       } catch {
         // folder gone — continue with the rest
       }

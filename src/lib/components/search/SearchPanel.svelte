@@ -50,7 +50,7 @@
   });
 
   function display(path: string): string {
-    const root = ws.explorer.rootPath;
+    const root = ws.explorer.rootForPath(path) ?? ws.explorer.rootPath;
     return root ? relativeTo(root, path) : path;
   }
 </script>

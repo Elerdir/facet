@@ -6,6 +6,7 @@ describe("session persistence", () => {
     const data = {
       untitled: [{ name: "bez názvu 1", content: "rozepsaná poznámka" }],
       folder: "E:/Projects/facet",
+      folders: ["E:/Projects/facet"],
       files: ["E:/Projects/facet/src/App.svelte", "E:/Projects/facet/README.md"],
       activePath: "E:/Projects/facet/README.md",
     };
@@ -17,6 +18,7 @@ describe("session persistence", () => {
     expect(parseSession(raw)).toEqual({
       untitled: [{ name: "ok", content: "x" }],
       folder: null,
+      folders: [],
       files: [],
       activePath: null,
     });

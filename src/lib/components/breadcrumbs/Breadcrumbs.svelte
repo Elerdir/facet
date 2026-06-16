@@ -11,7 +11,7 @@
   const segments = $derived.by(() => {
     const path = buffer?.path;
     if (!path) return [buffer?.name ?? "bez názvu"];
-    const root = ws.explorer.rootPath;
+    const root = ws.explorer.rootForPath(path) ?? ws.explorer.rootPath;
     const rel = root ? relativeTo(root, path) : path;
     return rel.split(/[\\/]/).filter((s) => s.length > 0);
   });
