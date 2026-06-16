@@ -344,6 +344,14 @@ pub fn git_diff_head(repo: String, file: String) -> Result<Vec<diff::DiffRow>, S
     GitVcs.diff_head(&repo, &file)
 }
 
+/// The HEAD (committed) content of a file, or "" when it is not tracked yet.
+/// Used by the editor's change gutter to diff against the working copy.
+#[tauri::command]
+pub fn git_head_content(repo: String, file: String) -> Result<String, String> {
+    let repository = Repository::open(&repo).map_err(|e| e.to_string())?;
+    Ok(head_blob_content(&repository, &file).unwrap_or_default())
+}
+
 #[tauri::command]
 pub fn git_stage(repo: String, file: String) -> Result<(), String> {
     GitVcs.stage(&repo, &file)

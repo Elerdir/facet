@@ -15,6 +15,7 @@
   import { LARGE_TEXT_BYTES } from "../domain/fileInfo";
   import type { Buffer } from "../domain/buffer";
   import type { BlameLine } from "../domain/vcs";
+  import type { ChangeKind } from "../domain/changeGutter";
   import type { LspDiagnostic, LspCompletionItem } from "../application/lsp.svelte";
   import { FORMAT_MARKERS, type TextFormatKind } from "../domain/textFormat";
 
@@ -32,6 +33,7 @@
     onFormatConsumed,
     revealLine,
     blame,
+    changeMarkers,
     lspDiagnostics,
     lspComplete,
     lspHover,
@@ -59,6 +61,7 @@
     onFormatConsumed?: () => void;
     revealLine?: number;
     blame?: BlameLine[] | null;
+    changeMarkers?: Map<number, ChangeKind>;
     lspDiagnostics?: LspDiagnostic[];
     lspComplete?: (line: number, character: number) => Promise<LspCompletionItem[]>;
     lspHover?: (line: number, character: number) => Promise<string | null>;
@@ -174,6 +177,32 @@
     });
   }
 
+  class ChangeBarMarker extends GutterMarker {
+    kind: ChangeKind;
+    constructor(kind: ChangeKind) {
+      super();
+      this.kind = kind;
+    }
+    toDOM(): Node {
+      const el = document.createElement("div");
+      el.className = `cm-change cm-change-${this.kind}`;
+      return el;
+    }
+  }
+
+  function changeExtension() {
+    if (!changeMarkers || changeMarkers.size === 0) return [];
+    const map = changeMarkers;
+    return gutter({
+      class: "cm-change-gutter",
+      lineMarker(view, block) {
+        const lineNo = view.state.doc.lineAt(block.from).number;
+        const kind = map.get(lineNo);
+        return kind ? new ChangeBarMarker(kind) : null;
+      },
+    });
+  }
+
   let host: HTMLDivElement;
   let view: EditorView | null = null;
   let currentId: string | null = null;
@@ -181,6 +210,7 @@
   const highlight = new Compartment();
   const themeComp = new Compartment();
   const blameComp = new Compartment();
+  const changeComp = new Compartment();
   const lintComp = new Compartment();
   const minimapComp = new Compartment();
   const bpComp = new Compartment();
@@ -236,6 +266,7 @@
         themeComp.of(theme === "dark" ? oneDark : []),
         highlight.of([]),
         blameComp.of(blameExtension()),
+        changeComp.of(changeExtension()),
         bpComp.of(bpExtension()),
         minimapComp.of(minimapExtension()),
         ...(lspDiagnostics !== undefined
@@ -406,6 +437,14 @@
     }
   });
 
+  // Refresh the git change gutter when the diff-vs-HEAD markers change.
+  $effect(() => {
+    void changeMarkers;
+    if (view) {
+      view.dispatch({ effects: changeComp.reconfigure(changeExtension()) });
+    }
+  });
+
   // Push fresh LSP diagnostics (squiggles) as the server reports them.
   $effect(() => {
     const diags = lspDiagnostics;
@@ -489,6 +528,35 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .editor-host :global(.cm-change-gutter) {
+    width: 3px;
+    padding: 0;
+  }
+
+  .editor-host :global(.cm-change) {
+    width: 3px;
+    height: 100%;
+    min-height: 1.2em;
+  }
+
+  .editor-host :global(.cm-change-added) {
+    background: #3fb950;
+  }
+
+  .editor-host :global(.cm-change-modified) {
+    background: #4aa3ff;
+  }
+
+  .editor-host :global(.cm-change-removed) {
+    background: transparent;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    border-left: 5px solid #f85149;
+    height: 0;
+    min-height: 0;
+    margin-top: 2px;
   }
 
   .editor-host :global(.cm-breakpoint-gutter) {
