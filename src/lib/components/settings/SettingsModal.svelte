@@ -53,6 +53,13 @@
     }
   }
 
+  // --- Nastavení projektu (.facet.json) ------------------------------------
+  let projMsg = $state("");
+  async function saveProject() {
+    const ok = await ws.saveProjectSettings();
+    projMsg = ok ? "Uloženo do .facet.json" : "Nejdřív otevři složku.";
+  }
+
   // --- Snippety -------------------------------------------------------------
   let snipJson = $state(JSON.stringify(ws.settings.current.snippets, null, 2));
   let snipMsg = $state("");
@@ -302,6 +309,21 @@
           />
           <span>Jazykové služby (LSP)</span>
         </label>
+
+        <div class="section">Nastavení projektu</div>
+        <div class="row">
+          <button class="btn" disabled={!ws.explorer.rootPath} onclick={saveProject}>
+            Uložit do .facet.json
+          </button>
+          {#if projMsg}<span class="lsp-msg">{projMsg}</span>{/if}
+        </div>
+        <div class="note">
+          Soubor <code>.facet.json</code> v kořeni projektu přepíše vybraná
+          nastavení (motiv, font, LSP servery, snippety, formát při uložení…)
+          jen pro tento projekt. {#if ws.settings.hasProjectOverride}
+            <strong>Aktivní override z projektu.</strong>
+          {/if}
+        </div>
 
         <div class="row col">
           <span class="lbl">Vlastní LSP servery (JSON)</span>

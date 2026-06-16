@@ -1,5 +1,19 @@
 import { describe, it, expect } from "vitest";
-import { parseSettings, DEFAULT_SETTINGS } from "./settings";
+import { parseSettings, parseProjectSettings, DEFAULT_SETTINGS } from "./settings";
+
+describe("parseProjectSettings", () => {
+  it("keeps only present overridable keys (no secrets), validated", () => {
+    const o = parseProjectSettings(
+      JSON.stringify({ editorTheme: "dracula", editorFontSize: 99, aiApiKey: "x", bogus: 1 }),
+    );
+    expect(o).toEqual({ editorTheme: "dracula", editorFontSize: 32 });
+  });
+
+  it("returns {} for invalid JSON or non-objects", () => {
+    expect(parseProjectSettings("{bad")).toEqual({});
+    expect(parseProjectSettings("42")).toEqual({});
+  });
+});
 
 describe("parseSettings", () => {
   it("reads valid settings", () => {

@@ -359,7 +359,7 @@ describe("Workspace open flow", () => {
   it("formats on save when the setting is enabled", async () => {
     const { fs, ws, formatter } = setup();
     formatter.result = "naformátováno\n";
-    ws.settings.current.formatOnSave = true;
+    ws.settings.current = { ...ws.settings.current, formatOnSave: true };
     fs.files.set("/proj/a.rs", "fn main(){}");
     await ws.openPath("/proj/a.rs");
     const id = ws.layout.activeTabId!;
@@ -376,6 +376,24 @@ describe("Workspace open flow", () => {
     const id = ws.layout.activeTabId!;
     await ws.saveBuffer(id);
     expect(ws.buffers.get(id)!.content).toBe("fn main(){}");
+  });
+
+  it("applies a project .facet.json override over global settings", async () => {
+    const { fs, ws } = setup();
+    fs.files.set(
+      "/proj/.facet.json",
+      JSON.stringify({ editorTheme: "dracula", formatOnSave: true, aiApiKey: "leak" }),
+    );
+    await ws.explorer.openFolder("/proj");
+    await ws.settings.loadProject("/proj");
+    expect(ws.settings.current.editorTheme).toBe("dracula");
+    expect(ws.settings.current.formatOnSave).toBe(true);
+    expect(ws.settings.current.aiApiKey).toBe(""); // secret never overridable
+    expect(ws.settings.hasProjectOverride).toBe(true);
+
+    await ws.settings.loadProject(null);
+    expect(ws.settings.current.editorTheme).toBe("default");
+    expect(ws.settings.hasProjectOverride).toBe(false);
   });
 
   it("searches across multiple workspace folders", async () => {
