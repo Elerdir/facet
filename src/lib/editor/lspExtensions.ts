@@ -70,32 +70,6 @@ function kindToType(kind?: number): string | undefined {
   }
 }
 
-/** Autocompletion fed by the language server. */
-export function lspCompletion(
-  complete: (line: number, character: number) => Promise<LspCompletionItem[]>,
-) {
-  return autocompletion({
-    override: [
-      async (context: CompletionContext): Promise<CompletionResult | null> => {
-        const pos = context.pos;
-        const line = context.state.doc.lineAt(pos);
-        const items = await complete(line.number - 1, pos - line.from);
-        if (items.length === 0) return null;
-        const word = context.matchBefore(/[\w$]*/);
-        return {
-          from: word ? word.from : pos,
-          options: items.slice(0, 200).map((i) => ({
-            label: i.label,
-            detail: i.detail,
-            type: kindToType(i.kind),
-            apply: i.insertText ?? i.label,
-          })),
-        };
-      },
-    ],
-  });
-}
-
 /**
  * Combined completion: snippets (with tab-stops) for the buffer's language plus
  * either LSP items (when a server is active) or plain word completion.

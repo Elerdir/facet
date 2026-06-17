@@ -2,6 +2,32 @@
 
 Formát vychází z [Keep a Changelog](https://keepachangelog.com/cs/1.1.0/), verzování podle [SemVer](https://semver.org/lang/cs/).
 
+## [1.0.0] – 2026-06-18
+
+Milník 1.0 — kompletní funkční editor. Shrnutí přírůstků od 0.1.0:
+
+### AI (Cursor-style)
+- Inline AI úprava (Ctrl+K), multi-file Composer, `@soubor` / `@codebase` (lokální RAG, BM25), ghost completion
+
+### Jazykové služby (LSP)
+- Diagnostika, completion, hover, goto-definition, reference, rename, dokumentové symboly
+- Code actions / Quick Fixes (Ctrl+.), signature help, inlay hints, document highlight, range formatting
+- Problémy + Osnova panel, breadcrumbs, sticky scroll, Go to Symbol (Ctrl+Shift+.), symbol v projektu (Ctrl+T)
+- Vestavěné servery: TS/JS, Rust, Python, Go, C/C++ (clangd), Lua, Bash, JSON, HTML, CSS/SCSS/LESS, YAML; + vlastní v nastavení
+
+### Ladění
+- Debugger přes Debug Adapter Protocol (breakpointy, krokování, zásobník, proměnné, výstup)
+
+### Git
+- Stage/commit/branch/sync/log/blame/clone/init, stage po blocích, change gutter, merge konflikty, stash, discard/revert
+
+### Editor a workspace
+- Find & Replace napříč projektem, multi-root workspace, per-projektové `.facet.json`
+- Snippety s tab-stopy, color swatches, TODO/FIXME zvýraznění, barevné motivy, render bílých znaků
+- Editovatelné klávesové zkratky, Go to Line, status-bar (EOL/odsazení), správa tabů (pin, znovuotevření)
+- Recent folders + uvítací obrazovka, drag & drop z OS
+- Terminál (více relací), lokální historie + autosave, hot-exit, porovnávání souborů, minimapa
+
 ## [0.1.0] – 2026-06-12
 
 První ucelené vydání.
