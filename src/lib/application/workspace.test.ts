@@ -396,6 +396,19 @@ describe("Workspace open flow", () => {
     expect(ws.settings.hasProjectOverride).toBe(false);
   });
 
+  it("opens a dropped file and adds dropped folders", async () => {
+    const { fs, ws } = setup();
+    fs.files.set("/proj/a.ts", "A");
+    fs.dirs.set("/lib", []);
+    fs.dirs.set("/lib2", []);
+    await ws.openDropped("/proj/a.ts");
+    expect(ws.activeBuffer()?.path).toBe("/proj/a.ts");
+    await ws.openDropped("/lib");
+    expect(ws.explorer.rootPath).toBe("/lib");
+    await ws.openDropped("/lib2");
+    expect(ws.explorer.roots.map((r) => r.path)).toEqual(["/lib", "/lib2"]);
+  });
+
   it("tracks recently opened folders (most recent first, deduped)", async () => {
     const { fs, ws } = setup();
     fs.dirs.set("/a", []);

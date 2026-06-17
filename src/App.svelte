@@ -237,11 +237,27 @@
     }
   }
 
+  let unlistenDrop: (() => void) | null = null;
+
   onMount(() => {
     window.addEventListener("keydown", onKeydown);
     void initWorkspace();
+    // Open files/folders dropped onto the window from the OS.
+    void (async () => {
+      try {
+        const { getCurrentWebview } = await import("@tauri-apps/api/webview");
+        unlistenDrop = await getCurrentWebview().onDragDropEvent((e) => {
+          if (e.payload.type === "drop") {
+            for (const p of e.payload.paths) void workspace.openDropped(p);
+          }
+        });
+      } catch {
+        // Outside Tauri — drag & drop unavailable.
+      }
+    })();
     return () => {
       window.removeEventListener("keydown", onKeydown);
+      unlistenDrop?.();
       autosave.stop();
     };
   });

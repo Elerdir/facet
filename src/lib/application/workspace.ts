@@ -845,6 +845,17 @@ export class Workspace {
     this.#schedulePersist();
   }
 
+  /** Handle a path dropped onto the window: open a file, or add a folder. */
+  async openDropped(path: string): Promise<void> {
+    try {
+      await this.#fs.readDir(path); // succeeds only for directories
+      if (this.explorer.roots.length === 0) await this.openFolderPath(path);
+      else await this.explorer.addFolder(path);
+    } catch {
+      await this.openPath(path);
+    }
+  }
+
   /** Load the recent-folders list from disk (call once at startup). */
   async loadRecent(): Promise<void> {
     try {

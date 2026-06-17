@@ -76,7 +76,9 @@ export class FakeFileSystem implements FileSystemPort {
   }
 
   async readDir(path: string): Promise<TreeEntry[]> {
-    return this.dirs.get(path) ?? [];
+    if (this.dirs.has(path)) return this.dirs.get(path)!;
+    if (this.files.has(path)) throw new Error("není složka");
+    return [];
   }
 
   #parent(path: string): string {
