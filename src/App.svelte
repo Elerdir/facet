@@ -40,7 +40,7 @@
   import { loadUserTemplates } from "./lib/config/loadTemplates";
   import { Autosave } from "./lib/application/autosave";
   import { coreCommands } from "./lib/application/commands";
-  import { chordFromEvent, buildChordMap } from "./lib/domain/keybindings";
+  import { chordFromEvent, buildChordMap, effectiveChord } from "./lib/domain/keybindings";
   import { relativeTo } from "./lib/domain/paths";
 
   setWorkspace(workspace);
@@ -155,6 +155,10 @@
       },
       openWorkspaceSymbols: () => (workspaceSymbolOpen = true),
       toggleZen: () => (zen = !zen),
+    }).map((c) => {
+      // Show the user's effective shortcut (honours custom keybindings).
+      const chord = effectiveChord(c.id, workspace.settings.current.keybindings);
+      return chord ? { ...c, hint: chord } : c;
     }),
   );
 
