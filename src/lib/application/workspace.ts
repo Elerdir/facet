@@ -19,6 +19,7 @@ import { stripCodeFences, type ProjectFile, type FileContext } from "../domain/a
 import { parseSearchReplaceBlocks, applyFileEdits } from "../domain/multiEdit";
 import { extractMentions } from "../domain/mentions";
 import { CodebaseIndexStore } from "./codebaseIndex.svelte";
+import { RecentStore } from "./recent.svelte";
 import { chunkFile, buildIndex, bm25Search } from "../domain/retrieval";
 import {
   parseUnifiedDiff,
@@ -113,6 +114,7 @@ export class Workspace {
   readonly projectEditUi = new ProjectEditStore();
   #projectEditKeyToBuffer = new Map<string, string>();
   readonly codebase = new CodebaseIndexStore();
+  readonly recent = new RecentStore();
 
   #fs: FileSystemPort;
   #dialog: DialogPort;
@@ -829,11 +831,44 @@ export class Workspace {
   async openFolder(): Promise<void> {
     const path = await this.#dialog.openFolder();
     if (!path) return;
+    await this.openFolderPath(path);
+  }
+
+  /** Open a specific folder (used by the dialog and the welcome/recent list). */
+  async openFolderPath(path: string): Promise<void> {
     await this.explorer.openFolder(path);
     await this.settings.loadProject(path);
     await this.vcs.refresh(path);
     void this.#watcher?.watch(path).catch(() => {});
+    this.recent.add(path);
+    void this.#persistRecent();
     this.#schedulePersist();
+  }
+
+  /** Load the recent-folders list from disk (call once at startup). */
+  async loadRecent(): Promise<void> {
+    try {
+      const raw = await this.#fs.readTextFile(await this.#recentPath());
+      const data = JSON.parse(raw);
+      if (Array.isArray(data)) this.recent.set(data as string[]);
+    } catch {
+      // no recent list yet
+    }
+  }
+
+  async #persistRecent(): Promise<void> {
+    try {
+      await this.#fs.writeTextFile(
+        await this.#recentPath(),
+        JSON.stringify(this.recent.folders, null, 2),
+      );
+    } catch {
+      // best effort
+    }
+  }
+
+  async #recentPath(): Promise<string> {
+    return join(await appConfigDir(), "recent.json");
   }
 
   /** Write the current effective settings (overridable subset) to `.facet.json`. */
@@ -1168,6 +1203,7 @@ export class Workspace {
           await this.explorer.openFolder(folder);
           await this.vcs.refresh(folder);
           void this.#watcher?.watch(folder).catch(() => {});
+          this.recent.add(folder);
         } else {
           await this.explorer.addFolder(folder);
         }

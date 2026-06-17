@@ -396,6 +396,16 @@ describe("Workspace open flow", () => {
     expect(ws.settings.hasProjectOverride).toBe(false);
   });
 
+  it("tracks recently opened folders (most recent first, deduped)", async () => {
+    const { fs, ws } = setup();
+    fs.dirs.set("/a", []);
+    fs.dirs.set("/b", []);
+    await ws.openFolderPath("/a");
+    await ws.openFolderPath("/b");
+    await ws.openFolderPath("/a");
+    expect(ws.recent.folders).toEqual(["/a", "/b"]);
+  });
+
   it("searches across multiple workspace folders", async () => {
     const { fs, ws } = setup();
     fs.files.set("/a/x.ts", "needle here");
