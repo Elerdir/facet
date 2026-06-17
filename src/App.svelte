@@ -6,6 +6,7 @@
   import StatusBar from "./lib/components/StatusBar.svelte";
   import FileExplorer from "./lib/components/explorer/FileExplorer.svelte";
   import PaneView from "./lib/components/layout/PaneView.svelte";
+  import Welcome from "./lib/components/welcome/Welcome.svelte";
   import HistoryPanel from "./lib/components/history/HistoryPanel.svelte";
   import CompareView from "./lib/components/compare/CompareView.svelte";
   import SourceControlPanel from "./lib/components/vcs/SourceControlPanel.svelte";
@@ -247,6 +248,7 @@
 
   async function initWorkspace() {
     await workspace.settings.load();
+    void workspace.loadRecent();
     workspace.history.setRetentionDays(workspace.settings.current.historyRetentionDays);
     void workspace.history.pruneOld();
     void loadUserTemplates(); // best-effort: custom file-type templates
@@ -371,6 +373,8 @@
     <main class="main" oncontextmenu={onEditorContextMenu}>
       {#if compareActive}
         <CompareView />
+      {:else if workspace.buffers.items.length === 0}
+        <Welcome />
       {:else}
         <PaneView node={workspace.layout.root} />
       {/if}
