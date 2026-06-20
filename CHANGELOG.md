@@ -2,6 +2,11 @@
 
 Formát vychází z [Keep a Changelog](https://keepachangelog.com/cs/1.1.0/), verzování podle [SemVer](https://semver.org/lang/cs/).
 
+## [1.0.1] – 2026-06-18
+
+### Opraveno
+- Aplikace v release buildu padala hned po startu (`PluginInitialization("updater", … must use a secure protocol like https)`). Updater endpoint přepnut z `http://` na `https://`, takže Tauri projde validací a okno se otevře. (Kontrola aktualizací zůstává funkční, jen vyžaduje běžící HTTPS UpdateHub.)
+
 ## [1.0.0] – 2026-06-18
 
 Milník 1.0 — kompletní funkční editor. Shrnutí přírůstků od 0.1.0:
