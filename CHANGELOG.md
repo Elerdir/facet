@@ -2,6 +2,11 @@
 
 Formát vychází z [Keep a Changelog](https://keepachangelog.com/cs/1.1.0/), verzování podle [SemVer](https://semver.org/lang/cs/).
 
+## [1.0.2] – 2026-06-18
+
+### Opraveno
+- Nastavení → Zkratky: řádky šly od kraje ke kraji; doplněna postranní mezera (16 px) jako u ostatních záložek.
+
 ## [1.0.1] – 2026-06-18
 
 ### Opraveno

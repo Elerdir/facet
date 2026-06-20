@@ -1012,7 +1012,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 4px 0;
+    padding: 4px 16px;
   }
 
   .key-label {
